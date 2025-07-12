@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: membuddy-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword  # 设置root用户密码
+      MYSQL_DATABASE: membuddy           # 自动创建数据库
+      MYSQL_USER: membuddy               # 创建普通用户
+      MYSQL_PASSWORD: membuddypass       # 设置普通用户密码
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d  # 初始化脚本目录
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    networks:
+      - membuddy-network
+
+volumes:
+  mysql_data:
+    name: membuddy-mysql-data
+
+networks:
+  membuddy-network:
+    name: membuddy-network 
