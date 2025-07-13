@@ -4,14 +4,14 @@ from pydantic import BaseModel
 from typing import List, Optional
 import json
 import re
-from supabase import Client
+from supabase import Client, create_client
 from gotrue.errors import AuthApiError
 import jwt
 import logging
 import uuid
 
 from config import settings
-from database import get_supabase
+from database import get_anon_supabase
 import schemas
 from gemini import generate_memory_aids as generate_aids_from_gemini
 
@@ -43,7 +43,7 @@ async def get_current_user(authorization: str = Header(...)):
         if user_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: 'sub' claim missing")
         
-        return {"id": user_id, "email": payload.get("email"), "full_name": payload.get("full_name", "")}
+        return {"id": user_id, "email": payload.get("email"), "full_name": payload.get("full_name", ""), "token": token}
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
     except jwt.InvalidTokenError:
@@ -52,11 +52,16 @@ async def get_current_user(authorization: str = Header(...)):
         logger.error(f"Credential validation error: {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
 
+async def get_supabase_authed(current_user: dict = Depends(get_current_user)) -> Client:
+    supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    supabase.postgrest.auth(current_user['token'])
+    return supabase
+
 # --- API Routes ---
 
 # --- Auth Routes ---
 @app.post("/api/auth/register", response_model=schemas.User)
-def register_user(user: schemas.UserCreate, supabase: Client = Depends(get_supabase)):
+def register_user(user: schemas.UserCreate, supabase: Client = Depends(get_anon_supabase)):
     try:
         res = supabase.auth.sign_up({
             "email": user.email,
@@ -71,7 +76,7 @@ def register_user(user: schemas.UserCreate, supabase: Client = Depends(get_supab
         raise HTTPException(status_code=e.status, detail=e.message)
 
 @app.post("/api/auth/login")
-def login(user: schemas.UserLogin, supabase: Client = Depends(get_supabase)):
+def login(user: schemas.UserLogin, supabase: Client = Depends(get_anon_supabase)):
     logger.info(f"Login request received for user: {user.email}")
     try:
         res = supabase.auth.sign_in_with_password({
@@ -129,7 +134,7 @@ def get_memory_items(
     skip: int = 0,
     limit: int = 100,
     current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase)
+    supabase: Client = Depends(get_supabase_authed)
 ):
     res = supabase.table("memory_items").select("*, memory_aids(*)").eq("user_id", current_user['id']).range(skip, skip + limit - 1).execute()
     
@@ -153,7 +158,7 @@ def get_memory_items(
 def create_memory_item(
     item: schemas.MemoryItemCreate,
     current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase)
+    supabase: Client = Depends(get_supabase_authed)
 ):
     try:
         res = supabase.table("memory_items").insert({
@@ -186,7 +191,7 @@ def create_memory_item(
 def get_memory_item(
     item_id: uuid.UUID,
     current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase)
+    supabase: Client = Depends(get_supabase_authed)
 ):
     res = supabase.table("memory_items").select("*, memory_aids(*)").eq("id", str(item_id)).eq("user_id", current_user['id']).single().execute()
     if not res.data:
@@ -213,7 +218,7 @@ def update_memory_item(
     item_id: uuid.UUID,
     item: schemas.MemoryAidsUpdate,
     current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase)
+    supabase: Client = Depends(get_supabase_authed)
 ):
     try:
         aids_res = supabase.table("memory_aids").insert({
@@ -253,7 +258,7 @@ def update_memory_item(
 def delete_memory_item(
     item_id: uuid.UUID,
     current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase)
+    supabase: Client = Depends(get_supabase_authed)
 ):
     res = supabase.table("memory_items").delete().eq("id", str(item_id)).eq("user_id", current_user['id']).execute()
     if not res.data:
@@ -265,7 +270,7 @@ def delete_memory_item(
 def schedule_review(
     review: schemas.ReviewScheduleCreate,
     current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase)
+    supabase: Client = Depends(get_supabase_authed)
 ):
     res = supabase.table("memory_items").select("id").eq("id", str(review.memory_item_id)).eq("user_id", current_user['id']).execute()
     if not res.data:
@@ -284,7 +289,7 @@ def schedule_review(
 @app.get("/api/review/schedule", response_model=List[schemas.ReviewSchedule])
 def get_review_schedule(
     current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase)
+    supabase: Client = Depends(get_supabase_authed)
 ):
     res = supabase.table("review_schedules").select("*").eq("user_id", current_user['id']).execute()
     return res.data

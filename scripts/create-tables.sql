@@ -1,0 +1,83 @@
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Users table
+CREATE TABLE users (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Memory items table
+CREATE TABLE memory_items (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    content TEXT NOT NULL,
+    category VARCHAR(100) DEFAULT '其他',
+    tags JSONB DEFAULT '[]'::jsonb,
+    type VARCHAR(50) DEFAULT 'general', -- sequence, list, grammar, formula, pairs, general
+    difficulty VARCHAR(20) DEFAULT 'medium', -- easy, medium, hard
+    starred BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Memory reviews table
+CREATE TABLE memory_reviews (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    memory_item_id UUID REFERENCES memory_items(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    review_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    next_review_date DATE NOT NULL,
+    mastery_level INTEGER DEFAULT 0 CHECK (mastery_level >= 0 AND mastery_level <= 100),
+    review_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Memory aids table (for storing generated AI content)
+CREATE TABLE memory_aids (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    memory_item_id UUID REFERENCES memory_items(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    mind_map_data JSONB,
+    mnemonics_data JSONB,
+    sensory_associations_data JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for better performance
+CREATE INDEX idx_memory_items_user_id ON memory_items(user_id);
+CREATE INDEX idx_memory_items_category ON memory_items(category);
+CREATE INDEX idx_memory_items_starred ON memory_items(starred);
+CREATE INDEX idx_memory_items_created_at ON memory_items(created_at);
+
+CREATE INDEX idx_memory_reviews_user_id ON memory_reviews(user_id);
+CREATE INDEX idx_memory_reviews_memory_item_id ON memory_reviews(memory_item_id);
+CREATE INDEX idx_memory_reviews_next_review_date ON memory_reviews(next_review_date);
+
+CREATE INDEX idx_memory_aids_user_id ON memory_aids(user_id);
+CREATE INDEX idx_memory_aids_memory_item_id ON memory_aids(memory_item_id);
+
+-- Create updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create triggers for updated_at
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_memory_items_updated_at BEFORE UPDATE ON memory_items
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_memory_aids_updated_at BEFORE UPDATE ON memory_aids
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
