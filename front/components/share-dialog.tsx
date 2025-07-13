@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Copy, Link, QrCode, Mail, MessageSquare, Share, Eye, Volume2, Hand } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import QRCode from "qrcode.react"
+import { QRCodeSVG } from "qrcode.react"
 
 interface ShareDialogProps {
   open: boolean
@@ -185,7 +185,7 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
           <TabsContent value="qrcode" className="mt-4">
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="rounded-lg bg-white p-4">
-                <QRCode value={shareUrl} size={200} />
+                <QRCodeSVG value={shareUrl} size={200} />
               </div>
               <p className="text-sm text-white/70">扫描二维码分享内容</p>
             </div>

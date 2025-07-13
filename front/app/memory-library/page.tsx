@@ -160,7 +160,7 @@ export default function MemoryLibraryPage() {
     const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      (item.tags && item.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase())))
     const matchesCategory = filterCategory === "all" || item.category === filterCategory
     return matchesSearch && matchesCategory
   })
@@ -168,7 +168,7 @@ export default function MemoryLibraryPage() {
   const sortedItems = [...filteredItems].sort((a, b) => {
     switch (sortBy) {
       case "recent":
-        return new Date(b.nextReview).getTime() - new Date(a.nextReview).getTime()
+        return (b.nextReview ? new Date(b.nextReview).getTime() : 0) - (a.nextReview ? new Date(a.nextReview).getTime() : 0)
       case "mastery":
         return b.mastery - a.mastery
       case "reviews":
@@ -396,7 +396,10 @@ export default function MemoryLibraryPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <Card className="border border-white/10 bg-white/5 backdrop-blur-sm hover:border-cyan-400/50 transition-colors">
+                <Card
+                  data-testid={`memory-item-${item.id}`}
+                  className="border border-white/10 bg-white/5 backdrop-blur-sm hover:border-cyan-400/50 transition-colors"
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
