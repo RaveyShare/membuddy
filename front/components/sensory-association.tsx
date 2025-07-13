@@ -175,7 +175,7 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
           <p className="text-sm text-white">
             <span className="font-medium text-white">💡 记忆提示：</span>
             通过{association.type === "visual" ? "视觉想象" : association.type === "auditory" ? "听觉联想" : "触觉感受"}
-            来加强记忆印象， 让抽象的历史概念变得具体可感。
+            来加强记忆印象， 让抽象的概念变得具体可感。
           </p>
         </div>
       </CardContent>

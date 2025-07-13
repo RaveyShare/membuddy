@@ -7,6 +7,7 @@
 
 import { authManager, type AuthResponse, type LoginCredentials, type RegisterCredentials } from "./auth"
 import type { MemoryItem, MemoryItemCreate, MemoryAids } from "./types" // Assuming types.ts will be created
+import { jwtDecode } from "jwt-decode";
 
 const API_BASE_URL = "http://localhost:8000/api"
 
@@ -32,7 +33,7 @@ export const api = {
       const data = await handleResponse<{ access_token: string }>(response);
 
       // Decode JWT to get user info
-      const tokenPayload = JSON.parse(atob(data.access_token.split('.')[1]));
+      const tokenPayload: { sub: string, email: string, full_name: string } = jwtDecode(data.access_token);
       const user = {
         id: tokenPayload.sub,
         email: tokenPayload.email,
@@ -70,8 +71,15 @@ export const api = {
 
   // Memory items endpoints
   async getMemoryItems(): Promise<any[]> {
-    const response = await this.axios.get("/memory_items")
-    return response.data
+    const token = authManager.getToken()
+    if (!token) throw new Error("Not authenticated")
+
+    const response = await fetch(`${API_BASE_URL}/memory_items`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    return handleResponse<any[]>(response)
   },
 
   saveMemoryItem: async (item: MemoryItemCreate): Promise<MemoryItem> => {

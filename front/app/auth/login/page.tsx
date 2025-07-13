@@ -5,7 +5,7 @@ import AuthGuard from "@/components/auth/auth-guard"
 
 export default function LoginPage() {
   return (
-    <AuthGuard requireAuth={false}>
+    <AuthGuard publicOnly={true}>
       <div className="min-h-screen bg-black text-white">
         {/* Background Effects */}
         <div className="absolute inset-0 overflow-hidden">

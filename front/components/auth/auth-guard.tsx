@@ -1,94 +1,60 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { authManager } from "@/lib/auth"
 
 interface AuthGuardProps {
   children: React.ReactNode
   requireAuth?: boolean
-  redirectTo?: string
+  publicOnly?: boolean // New prop to differentiate public-only pages like login/register
 }
 
-export default function AuthGuard({ children, requireAuth = true, redirectTo = "/auth/login" }: AuthGuardProps) {
+export default function AuthGuard({ children, requireAuth = false, publicOnly = false }: AuthGuardProps) {
   const [isLoading, setIsLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
-    const checkAuth = () => {
-      try {
-        const authenticated = authManager.isAuthenticated()
-        console.log("Auth check result:", authenticated) // Debug log
-        setIsAuthenticated(authenticated)
+    const checkAuthStatus = () => {
+      const isAuthenticated = authManager.isAuthenticated()
+      console.log(`AuthGuard Check: Path=${pathname}, requireAuth=${requireAuth}, publicOnly=${publicOnly}, isAuthenticated=${isAuthenticated}`)
 
-        if (requireAuth && !authenticated) {
-          // Store the current path for redirect after login
-          const currentPath = window.location.pathname + window.location.search
-          const redirectUrl = `${redirectTo}?redirect=${encodeURIComponent(currentPath)}`
-          console.log("Redirecting to login:", redirectUrl) // Debug log
-          router.push(redirectUrl)
-          return
-        }
-
-        if (!requireAuth && authenticated) {
-          // If user is authenticated but this is a public-only page (like login/register)
-          const redirect = new URLSearchParams(window.location.search).get("redirect") || "/"
-          console.log("Redirecting authenticated user to:", redirect) // Debug log
-          router.push(redirect)
-          return
-        }
-
-        setIsLoading(false)
-      } catch (error) {
-        console.error("Auth check error:", error)
-        setIsLoading(false)
+      // Case 1: Page requires authentication, but user is not logged in
+      if (requireAuth && !isAuthenticated) {
+        console.log("Redirecting to login, user not authenticated.")
+        const redirectUrl = `/auth/login?redirect=${encodeURIComponent(pathname + searchParams.toString())}`
+        router.replace(redirectUrl)
+        return
       }
+
+      // Case 2: Page is for public only (e.g., login), but user is already logged in
+      if (publicOnly && isAuthenticated) {
+        const redirect = searchParams.get("redirect") || "/"
+        console.log(`Redirecting to ${redirect}, user already authenticated.`)
+        router.replace(redirect)
+        return
+      }
+
+      // If neither of the above cases, the user is authorized to see the page
+      setIsLoading(false)
     }
 
     // Initial check
-    checkAuth()
+    checkAuthStatus()
 
-    // Set up a listener for auth state changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "auth_token" || e.key === "user_data") {
-        console.log("Auth state changed, rechecking...") // Debug log
-        checkAuth()
-      }
-    }
+    // Subscribe to auth changes
+    const unsubscribe = authManager.addListener(checkAuthStatus)
 
-    // Listen for storage changes (when auth state changes)
-    window.addEventListener("storage", handleStorageChange)
-
-    // Also check periodically in case of same-tab changes
-    const interval = setInterval(() => {
-      const currentAuth = authManager.isAuthenticated()
-      if (currentAuth !== isAuthenticated) {
-        console.log("Auth state changed (periodic check):", currentAuth) // Debug log
-        checkAuth()
-      }
-    }, 1000)
-
+    // Cleanup subscription on component unmount
     return () => {
-      window.removeEventListener("storage", handleStorageChange)
-      clearInterval(interval)
+      console.log("AuthGuard cleanup: unsubscribing from auth changes.")
+      unsubscribe()
     }
-  }, [requireAuth, redirectTo, router, isAuthenticated])
-
-  // Show loading only for a maximum of 3 seconds
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.log("Auth check timeout, proceeding...") // Debug log
-        setIsLoading(false)
-      }
-    }, 3000)
-
-    return () => clearTimeout(timeout)
-  }, [isLoading])
+  }, [requireAuth, publicOnly, router, pathname, searchParams])
 
   if (isLoading) {
     return (
@@ -101,13 +67,7 @@ export default function AuthGuard({ children, requireAuth = true, redirectTo = "
     )
   }
 
-  if (requireAuth && !isAuthenticated) {
-    return null // Will redirect in useEffect
-  }
-
-  if (!requireAuth && isAuthenticated) {
-    return null // Will redirect in useEffect
-  }
-
+  // If we are not loading, and the logic in useEffect hasn't redirected,
+  // then it's safe to render the children.
   return <>{children}</>
 }
