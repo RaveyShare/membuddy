@@ -69,14 +69,9 @@ export const api = {
   },
 
   // Memory items endpoints
-  getMemoryItems: async (): Promise<MemoryItem[]> => {
-    const token = authManager.getToken()
-    if (!token) throw new Error("Not authenticated")
-
-    const response = await fetch(`${API_BASE_URL}/memory_items/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return handleResponse<MemoryItem[]>(response)
+  async getMemoryItems(): Promise<any[]> {
+    const response = await this.axios.get("/memory_items")
+    return response.data
   },
 
   saveMemoryItem: async (item: MemoryItemCreate): Promise<MemoryItem> => {

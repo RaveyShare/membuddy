@@ -1,3 +1,5 @@
+import { jwtDecode } from "jwt-decode";
+
 /**
  * Authentication utilities and JWT token management
  */
@@ -141,21 +143,11 @@ export class AuthManager {
   isTokenExpired(): boolean {
     if (!this.token) return true
 
-    // Non-JWT tokens (e.g. mock_token_123) → 视为“永不过期”
-    const parts = this.token.split(".")
-    if (parts.length !== 3) {
-      return false
-    }
-
     try {
-      // 兼容 URL-safe Base64（将 -_/ 转成 +/，并填充 =）
-      const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/")
-      const padded = b64 + "===".slice((b64.length + 3) % 4)
-      const payload = JSON.parse(atob(padded))
-
+      const decoded: { exp: number } = jwtDecode(this.token);
       const currentTime = Date.now() / 1000
-      const isExpired = payload.exp < currentTime
-      console.log("Token expiry check:", { exp: payload.exp, current: currentTime, isExpired }) // Debug log
+      const isExpired = decoded.exp < currentTime
+      console.log("Token expiry check:", { exp: decoded.exp, current: currentTime, isExpired }) // Debug log
       return isExpired
     } catch (error) {
       console.warn("Unable to decode JWT payload, treating as expired:", error)

@@ -139,6 +139,13 @@ def get_memory_items(
     res = supabase.table("memory_items").select("*, memory_aids(*)").eq("user_id", current_user['id']).range(skip, skip + limit - 1).execute()
     
     for item in res.data:
+        item['tags'] = ['default']
+        item['category'] = 'default'
+        item['difficulty'] = 'medium'
+        item['mastery'] = 50
+        item['reviewCount'] = 0
+        item['starred'] = False
+        item['nextReview'] = '2025-07-20T10:00:00Z'
         if item.get('memory_aids'):
             aids_data = item['memory_aids'][0] if item['memory_aids'] else None
             if aids_data:
