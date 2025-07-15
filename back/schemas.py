@@ -102,4 +102,6 @@ class MemoryAidsUpdate(BaseModel):
 
 class MemoryAidsUpdate(BaseModel):
     memory_aids: MemoryAids
-
+# --- Memory Aids Generation ---
+class MemoryGenerateRequest(BaseModel):
+    content: str

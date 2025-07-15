@@ -9,11 +9,12 @@ from gotrue.errors import AuthApiError
 import jwt
 import logging
 import uuid
+import asyncio
 
 from config import settings
 from database import get_anon_supabase
 import schemas
-from gemini import generate_memory_aids as generate_aids_from_gemini
+from gemini import generate_memory_aids, generate_review_schedule_from_ebbinghaus
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO)
@@ -43,6 +44,7 @@ async def get_current_user(authorization: str = Header(...)):
         if user_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: 'sub' claim missing")
         
+        # Return the whole token so we can use it for authenticated Supabase requests
         return {"id": user_id, "email": payload.get("email"), "full_name": payload.get("full_name", ""), "token": token}
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
@@ -52,8 +54,11 @@ async def get_current_user(authorization: str = Header(...)):
         logger.error(f"Credential validation error: {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
 
-async def get_supabase_authed(current_user: dict = Depends(get_current_user)) -> Client:
+def get_supabase_authed(current_user: dict = Depends(get_current_user)) -> Client:
+    """Get an authenticated Supabase client for the current user."""
     supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+    # The official library uses the Authorization header directly.
+    # We pass the user's JWT to the client instance.
     supabase.postgrest.auth(current_user['token'])
     return supabase
 
@@ -71,7 +76,8 @@ def register_user(user: schemas.UserCreate, supabase: Client = Depends(get_anon_
         if res.user:
             return schemas.User(id=res.user.id, email=res.user.email, full_name=res.user.user_metadata.get("full_name", ""))
         else:
-            raise HTTPException(status_code=400, detail="Could not register user. Please check your email for confirmation.")
+            # This path is often taken if the user already exists but is not confirmed.
+            raise HTTPException(status_code=400, detail="Could not register user. If you have already signed up, please check your email for a confirmation link.")
     except AuthApiError as e:
         raise HTTPException(status_code=e.status, detail=e.message)
 
@@ -103,30 +109,17 @@ def login(user: schemas.UserLogin, supabase: Client = Depends(get_anon_supabase)
         raise HTTPException(status_code=500, detail="An unexpected error occurred")
 
 # --- Memory Aids Generation ---
-class MemoryGenerateRequest(BaseModel):
-    content: str
-
 @app.post("/api/memory/generate", response_model=schemas.MemoryAids)
 async def generate_memory_aids_endpoint(
-    request: MemoryGenerateRequest,
+    request: schemas.MemoryGenerateRequest,
     current_user: dict = Depends(get_current_user)
 ):
     logger.info(f"User {current_user['id']} requested memory aids generation.")
-    raw_response = await generate_aids_from_gemini(request.content)
+    raw_response = await generate_memory_aids(request.content)
     if not raw_response:
         raise HTTPException(status_code=500, detail="Failed to generate memory aids from AI service")
-
-    response_data = {
-        "mindMap": raw_response.get("mindMap", {}),
-        "mnemonics": raw_response.get("mnemonics", []),
-        "sensoryAssociations": raw_response.get("sensoryAssociations", [])
-    }
     
-    for mnemonic in response_data["mnemonics"]:
-        if "type" not in mnemonic:
-            mnemonic["type"] = "story"
-            
-    return schemas.MemoryAids(**response_data)
+    return schemas.MemoryAids(**raw_response)
 
 # --- Memory Item CRUD ---
 @app.get("/api/memory_items", response_model=List[schemas.MemoryItem])
@@ -136,63 +129,108 @@ def get_memory_items(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_authed)
 ):
-    res = supabase.table("memory_items").select("*, memory_aids(*)").eq("user_id", current_user['id']).range(skip, skip + limit - 1).execute()
+    res = supabase.table("memory_items").select("*, memory_aids(*)").eq("user_id", current_user['id']).order("created_at", desc=True).range(skip, skip + limit - 1).execute()
     
-    for item in res.data:
-        item['tags'] = ['default']
-        item['category'] = 'default'
-        item['difficulty'] = 'medium'
-        item['mastery'] = 50
-        item['reviewCount'] = 0
-        item['starred'] = False
-        item['nextReview'] = '2025-07-20T10:00:00Z'
-        if item.get('memory_aids'):
-            aids_data = item['memory_aids'][0] if item['memory_aids'] else None
-            if aids_data:
-                item['memory_aids'] = {
+    items = []
+    for item_data in res.data:
+        # Add default values for fields not yet in the database
+        item_data.setdefault('tags', ['default'])
+        item_data.setdefault('category', 'default')
+        item_data.setdefault('difficulty', 'medium')
+        item_data.setdefault('mastery', 50)
+        item_data.setdefault('reviewCount', 0)
+        item_data.setdefault('starred', False)
+        item_data.setdefault('nextReview', '2025-07-20T10:00:00Z') # Placeholder
+
+        if item_data.get('memory_aids'):
+            aids_list = item_data['memory_aids']
+            if aids_list:
+                aids_data = aids_list[0]
+                item_data['memory_aids'] = {
                     "mindMap": json.loads(aids_data.get('mind_map_data', '{}')),
                     "mnemonics": json.loads(aids_data.get('mnemonics_data', '[]')),
                     "sensoryAssociations": json.loads(aids_data.get('sensory_associations_data', '[]'))
                 }
             else:
-                item['memory_aids'] = None
-        else:
-            item['memory_aids'] = None
+                item_data['memory_aids'] = None
+        items.append(item_data)
             
-    return res.data
+    return items
 
-@app.post("/api/memory_items", response_model=schemas.MemoryItem)
-def create_memory_item(
+@app.post("/api/memory_items", response_model=schemas.MemoryItem, status_code=status.HTTP_201_CREATED)
+async def create_memory_item(
     item: schemas.MemoryItemCreate,
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_authed)
 ):
+    user_id = current_user['id']
+    
+    # 1. Create the main memory item
     try:
-        res = supabase.table("memory_items").insert({
+        item_res = supabase.table("memory_items").insert({
             "title": item.content[:50],
             "content": item.content,
-            "user_id": current_user['id']
+            "user_id": user_id
         }, returning="representation").execute()
         
-        if not res.data:
+        if not item_res.data:
             raise HTTPException(status_code=500, detail="Failed to create memory item.")
         
-        new_item = res.data[0]
-        
-        if item.memory_aids:
-            aids_res = supabase.table("memory_aids").insert({
-                "memory_item_id": new_item['id'],
-                "user_id": current_user['id'],
-                "mind_map_data": json.dumps(item.memory_aids.mindMap.dict()),
-                "mnemonics_data": json.dumps([m.dict() for m in item.memory_aids.mnemonics]),
-                "sensory_associations_data": json.dumps([s.dict() for s in item.memory_aids.sensoryAssociations])
-            }).execute()
-            
-        return new_item
+        new_item = item_res.data[0]
+        new_item_id = new_item['id']
         
     except Exception as e:
-        logger.error(f"Error creating memory item: {e}")
-        raise HTTPException(status_code=422, detail=f"Could not process memory item data: {e}")
+        logger.error(f"Error creating memory item in DB: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error while creating memory item: {e}")
+
+    # 2. Concurrently generate aids and review schedule
+    try:
+        aids_task = generate_memory_aids(item.content)
+        schedule_task = asyncio.to_thread(generate_review_schedule_from_ebbinghaus) # Run sync function in thread
+        
+        results = await asyncio.gather(aids_task, schedule_task, return_exceptions=True)
+        
+        aids_result, schedule_result = results
+
+        # Handle aids result
+        if isinstance(aids_result, Exception) or not aids_result:
+            logger.error(f"Failed to generate memory aids: {aids_result}")
+            # We can proceed without aids, the item is already created
+        else:
+            supabase.table("memory_aids").insert({
+                "memory_item_id": new_item_id,
+                "user_id": user_id,
+                "mind_map_data": json.dumps(aids_result.get("mindMap", {})),
+                "mnemonics_data": json.dumps(aids_result.get("mnemonics", [])),
+                "sensory_associations_data": json.dumps(aids_result.get("sensoryAssociations", []))
+            }).execute()
+
+        # Handle schedule result
+        if isinstance(schedule_result, Exception) or not schedule_result:
+            logger.error(f"Failed to generate review schedule: {schedule_result}")
+        else:
+            review_dates = schedule_result.get("review_dates", [])
+            schedule_entries = [
+                {
+                    "memory_item_id": new_item_id,
+                    "user_id": user_id,
+                    "review_date": date_str,
+                    "completed": False
+                }
+                for date_str in review_dates
+            ]
+            if schedule_entries:
+                supabase.table("review_schedules").insert(schedule_entries).execute()
+
+    except Exception as e:
+        logger.error(f"Error during post-creation tasks (aids/schedule): {e}")
+        # The main item is created, but aids/schedule failed. 
+        # The API can still return the created item.
+        
+    # 3. Fetch the final item state to return
+    final_item = get_memory_item(item_id=new_item_id, current_user=current_user, supabase=supabase)
+    return final_item
+
 
 @app.get("/api/memory_items/{item_id}", response_model=schemas.MemoryItem)
 def get_memory_item(
@@ -205,9 +243,19 @@ def get_memory_item(
         raise HTTPException(status_code=404, detail="Memory item not found")
     
     item = res.data
+    # Add default values for fields not yet in the database
+    item.setdefault('tags', ['default'])
+    item.setdefault('category', 'default')
+    item.setdefault('difficulty', 'medium')
+    item.setdefault('mastery', 50)
+    item.setdefault('reviewCount', 0)
+    item.setdefault('starred', False)
+    item.setdefault('nextReview', '2025-07-20T10:00:00Z') # Placeholder
+
     if item.get('memory_aids'):
-        aids_data = item['memory_aids'][0] if item['memory_aids'] else None
-        if aids_data:
+        aids_list = item['memory_aids']
+        if aids_list:
+            aids_data = aids_list[0]
             item['memory_aids'] = {
                 "mindMap": json.loads(aids_data.get('mind_map_data', '{}')),
                 "mnemonics": json.loads(aids_data.get('mnemonics_data', '[]')),
@@ -215,95 +263,57 @@ def get_memory_item(
             }
         else:
             item['memory_aids'] = None
-    else:
-        item['memory_aids'] = None
-        
+            
     return item
 
 @app.put("/api/memory_items/{item_id}", response_model=schemas.MemoryItem)
-def update_memory_item(
+def update_memory_item_aids(
     item_id: uuid.UUID,
-    item: schemas.MemoryAidsUpdate,
+    item_update: schemas.MemoryAidsUpdate,
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_authed)
 ):
     try:
-        aids_res = supabase.table("memory_aids").insert({
+        # Use upsert to either create or update the memory aids
+        supabase.table("memory_aids").upsert({
             "memory_item_id": str(item_id),
             "user_id": current_user['id'],
-            "mind_map_data": json.dumps(item.memory_aids.mindMap.dict()),
-            "mnemonics_data": json.dumps([m.dict() for m in item.memory_aids.mnemonics]),
-            "sensory_associations_data": json.dumps([s.dict() for s in item.memory_aids.sensoryAssociations])
+            "mind_map_data": json.dumps(item_update.memory_aids.mindMap.dict()),
+            "mnemonics_data": json.dumps([m.dict() for m in item_update.memory_aids.mnemonics]),
+            "sensory_associations_data": json.dumps([s.dict() for s in item_update.memory_aids.sensoryAssociations])
         }).execute()
 
-        item_res = supabase.table("memory_items").select("*, memory_aids(*)").eq("id", str(item_id)).single().execute()
-        
-        if not item_res.data:
-            raise HTTPException(status_code=404, detail="Memory item not found after updating aids.")
-        
-        updated_item = item_res.data
-        if updated_item.get('memory_aids'):
-            aids_data = updated_item['memory_aids'][0] if updated_item['memory_aids'] else None
-            if aids_data:
-                updated_item['memory_aids'] = {
-                    "mindMap": json.loads(aids_data.get('mind_map_data', '{}')),
-                    "mnemonics": json.loads(aids_data.get('mnemonics_data', '[]')),
-                    "sensoryAssociations": json.loads(aids_data.get('sensory_associations_data', '[]'))
-                }
-            else:
-                updated_item['memory_aids'] = None
-        else:
-            updated_item['memory_aids'] = None
-            
-        return updated_item
+        # Fetch and return the updated memory item
+        return get_memory_item(item_id=item_id, current_user=current_user, supabase=supabase)
         
     except Exception as e:
         logger.error(f"Error updating memory item aids: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred while updating memory aids: {e}")
 
-@app.delete("/api/memory_items/{item_id}")
+@app.delete("/api/memory_items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_memory_item(
     item_id: uuid.UUID,
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_authed)
 ):
+    # The related memory_aids and review_schedules will be deleted automatically 
+    # by the CASCADE constraint in the database.
     res = supabase.table("memory_items").delete().eq("id", str(item_id)).eq("user_id", current_user['id']).execute()
+    
     if not res.data:
-        raise HTTPException(status_code=404, detail="Memory item not found")
-    return {"status": "success", "message": "Memory item deleted successfully."}
+        raise HTTPException(status_code=404, detail="Memory item not found or you do not have permission to delete it.")
+    
+    return None
 
 # --- Review Schedule Routes ---
-@app.post("/api/review/schedule", response_model=schemas.ReviewSchedule)
-def schedule_review(
-    review: schemas.ReviewScheduleCreate,
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase_authed)
-):
-    res = supabase.table("memory_items").select("id").eq("id", str(review.memory_item_id)).eq("user_id", current_user['id']).execute()
-    if not res.data:
-        raise HTTPException(status_code=404, detail="Memory item not found")
-    
-    res = supabase.table("review_schedules").insert({
-        "memory_item_id": str(review.memory_item_id),
-        "user_id": current_user['id'],
-        "review_date": review.review_date.isoformat(),
-        "completed": review.completed
-    }).execute()
-    if not res.data:
-        raise HTTPException(status_code=500, detail="Failed to schedule review.")
-    return res.data[0]
-
 @app.get("/api/review/schedule", response_model=List[schemas.ReviewSchedule])
 def get_review_schedule(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_authed)
 ):
-    res = supabase.table("review_schedules").select("*").eq("user_id", current_user['id']).execute()
+    """Get all review schedules for the current user."""
+    res = supabase.table("review_schedules").select("*").eq("user_id", current_user['id']).order("review_date").execute()
     return res.data
-
-# --- Review Schedule Generation ---
-class ReviewGenerateRequest(BaseModel):
-    memory_item_id: uuid.UUID
 
 if __name__ == "__main__":
     import uvicorn

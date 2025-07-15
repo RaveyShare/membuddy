@@ -2,10 +2,11 @@ import google.generativeai as genai
 from config import settings
 import json
 import re
+from datetime import datetime, timedelta
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-SYSTEM_PROMPT = """你是小杏仁记忆搭子，负责帮助用户记忆。你会根据用户输入的内容，生成思维导图、记忆口诀和感官联想。
+SYSTEM_PROMPT_AIDS = """你是小杏仁记忆搭子，负责帮助用户记忆。你会根据用户输入的内容，生成思维导图、记忆口诀和感官联想。
 
 记忆口诀生成三种类型：顺口溜记忆法、首字母记忆法、故事联想法。
 感官联想也分为三类：视觉联想、听觉联想和触觉联想。
@@ -98,6 +99,26 @@ SYSTEM_PROMPT = """你是小杏仁记忆搭子，负责帮助用户记忆。你�
 }
 """
 
+# Although we ask Gemini for the schedule, it's more reliable to calculate it in code.
+# The prompt serves as a logical guide, but the implementation is deterministic.
+def generate_review_schedule_from_ebbinghaus():
+    """
+    Generates a review schedule based on the Ebbinghaus forgetting curve.
+    """
+    now = datetime.now()
+    review_intervals = [
+        timedelta(minutes=20),
+        timedelta(hours=1),
+        timedelta(hours=9),
+        timedelta(days=1),
+        timedelta(days=2),
+        timedelta(days=4),
+        timedelta(days=7),
+        timedelta(days=15),
+    ]
+    review_dates = [(now + interval).isoformat() for interval in review_intervals]
+    return {"review_dates": review_dates}
+
 def parse_gemini_response(text: str):
     try:
         # Clean the text by removing ```json and ``` markers
@@ -107,18 +128,16 @@ def parse_gemini_response(text: str):
         print(f"Error parsing Gemini response: {e}")
         return None
 
-
 async def generate_memory_aids(content: str):
     model = genai.GenerativeModel('gemini-1.5-flash')
-    prompt = f"{SYSTEM_PROMPT}\n\n用户输入的内容：{content}\n\n请为这个内容生成记忆辅助工具."
+    prompt = f"{SYSTEM_PROMPT_AIDS}\n\n用户输入的内容：{content}\n\n请为这个内容生成记忆辅助工具."
 
     try:
-
         response = await model.generate_content_async(prompt)
-        print(response.text)
+        # print("Gemini aids response:", response.text)
         parsed_response = parse_gemini_response(response.text)
         return parsed_response
     except Exception as e:
-        print(f"Error calling Gemini API: {e}")
+        print(f"Error calling Gemini API for aids: {e}")
         return None
 
