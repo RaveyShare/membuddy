@@ -74,10 +74,20 @@ class MemoryItem(MemoryItemBase):
     id: uuid.UUID
     user_id: uuid.UUID
     created_at: datetime
+    title: str
+    content: str
     memory_aids: Optional[MemoryAids] = None
+    tags: List[str] = ['default']
+    category: str = 'default'
+    difficulty: str = 'medium'
+    mastery: int = 50
+    reviewCount: int = 0
+    starred: bool = False
+    next_review_date: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
 
 # Review schedule schemas
 class ReviewScheduleBase(BaseModel):

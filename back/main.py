@@ -129,19 +129,26 @@ def get_memory_items(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_authed)
 ):
-    res = supabase.table("memory_items").select("*, memory_aids(*)").eq("user_id", current_user['id']).order("created_at", desc=True).range(skip, skip + limit - 1).execute()
+    # Fetch items with their related review schedules
+    res = supabase.table("memory_items").select("*, memory_aids(*), review_schedules(review_date, completed)").eq("user_id", current_user['id']).order("created_at", desc=True).range(skip, skip + limit - 1).execute()
     
     items = []
     for item_data in res.data:
-        # Add default values for fields not yet in the database
-        item_data.setdefault('tags', ['default'])
-        item_data.setdefault('category', 'default')
-        item_data.setdefault('difficulty', 'medium')
-        item_data.setdefault('mastery', 50)
-        item_data.setdefault('reviewCount', 0)
-        item_data.setdefault('starred', False)
-        item_data.setdefault('nextReview', '2025-07-20T10:00:00Z') # Placeholder
+        # Find the next upcoming review date
+        next_review = None
+        if item_data.get("review_schedules"):
+            upcoming_reviews = [
+                r for r in item_data["review_schedules"] 
+                if not r['completed'] and r.get('review_date')
+            ]
+            if upcoming_reviews:
+                # Sort by review_date to find the earliest
+                upcoming_reviews.sort(key=lambda r: r['review_date'])
+                next_review = upcoming_reviews[0]['review_date']
+        
+        item_data['next_review_date'] = next_review
 
+        # Handle memory aids parsing
         if item_data.get('memory_aids'):
             aids_list = item_data['memory_aids']
             if aids_list:
@@ -153,7 +160,9 @@ def get_memory_items(
                 }
             else:
                 item_data['memory_aids'] = None
-        items.append(item_data)
+        
+        # Validate with the Pydantic model, which will apply defaults
+        items.append(schemas.MemoryItem.model_validate(item_data))
             
     return items
 

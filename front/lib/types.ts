@@ -55,11 +55,19 @@ export interface MemoryAids {
 }
 
 export interface MemoryItem {
-  id: number;
+  id: string; // Changed to string for UUID
   user_id: UUID;
   created_at: string; // ISO 8601 date string
+  title: string;
   content: string;
-  memory_aids: MemoryAids;
+  memory_aids?: MemoryAids;
+  tags: string[];
+  category: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  mastery: number;
+  reviewCount: number;
+  starred: boolean;
+  next_review_date?: string | null; // This is the new field
 }
 
 export interface MemoryItemCreate {

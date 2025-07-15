@@ -30,11 +30,13 @@ import { useToast } from "@/components/ui/use-toast"
 import AuthGuard from "@/components/auth/auth-guard"
 import { format } from "date-fns"
 
+import { MemoryItem } from "@/lib/types"
+
 export default function MemoryLibraryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filterCategory, setFilterCategory] = useState("all")
   const [sortBy, setSortBy] = useState("recent")
-  const [memoryItems, setMemoryItems] = useState<any[]>([])
+  const [memoryItems, setMemoryItems] = useState<MemoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
 
@@ -168,7 +170,7 @@ export default function MemoryLibraryPage() {
   const sortedItems = [...filteredItems].sort((a, b) => {
     switch (sortBy) {
       case "recent":
-        return (b.nextReview ? new Date(b.nextReview).getTime() : 0) - (a.nextReview ? new Date(a.nextReview).getTime() : 0)
+        return (a.next_review_date ? new Date(a.next_review_date).getTime() : Infinity) - (b.next_review_date ? new Date(b.next_review_date).getTime() : Infinity)
       case "mastery":
         return b.mastery - a.mastery
       case "reviews":
@@ -213,29 +215,21 @@ export default function MemoryLibraryPage() {
     }
   }
 
-  const calculateDaysUntilReview = (reviewDate: string) => {
-    if (!reviewDate) return 0
+  const getDaysText = (reviewDate?: string | null) => {
+    if (!reviewDate) return "无计划"
 
     const today = new Date()
+    today.setHours(0, 0, 0, 0) // Normalize today to the start of the day
     const review = new Date(reviewDate)
+    review.setHours(0, 0, 0, 0) // Normalize review date
+
     const diffTime = review.getTime() - today.getTime()
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  }
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-  const getDaysText = (days: number, reviewDate: string) => {
-    // 如果没有天数信息，计算天数差
-    if (days === undefined || days === null || isNaN(days)) {
-      const calculatedDays = calculateDaysUntilReview(reviewDate)
-      if (calculatedDays === 0) return "今天"
-      if (calculatedDays === 1) return "明天"
-      if (calculatedDays < 0) return "已过期"
-      return `${calculatedDays}天后`
-    }
-
-    if (days === 0) return "今天"
-    if (days === 1) return "明天"
-    if (days < 0) return "已过期"
-    return `${days}天后`
+    if (diffDays < 0) return `已过期 ${-diffDays} 天`
+    if (diffDays === 0) return "今天"
+    if (diffDays === 1) return "明天"
+    return `${diffDays} 天后`
   }
 
   if (isLoading) {
@@ -466,9 +460,12 @@ export default function MemoryLibraryPage() {
                     <div className="mt-4 flex items-center justify-between text-xs text-white/60">
                       <div className="flex items-center text-sm text-cyan-400">
                         <Calendar className="mr-1 h-3 w-3" />
-                        {getDaysText(item.daysUntilReview, item.nextReview)}
+                        {item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd") : "无计划"}
                       </div>
-                      <span>{format(new Date(item.nextReview), "yyyy-MM-dd")}</span>
+                      <div className="flex items-center text-sm">
+                        <Clock className="mr-1 h-3 w-3" />
+                        {getDaysText(item.next_review_date)}
+                      </div>
                     </div>
 
                     <div className="mt-4 flex gap-2">
