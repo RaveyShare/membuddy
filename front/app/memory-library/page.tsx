@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import {
   ArrowLeft,
@@ -29,7 +30,7 @@ import { api } from "@/lib/api-config"
 import { useToast } from "@/components/ui/use-toast"
 import AuthGuard from "@/components/auth/auth-guard"
 import { format } from "date-fns"
-
+import { requestNotificationPermission, scheduleReviewNotifications, clearAllScheduledNotifications } from "@/lib/notification"
 import { MemoryItem } from "@/lib/types"
 
 export default function MemoryLibraryPage() {
@@ -38,6 +39,7 @@ export default function MemoryLibraryPage() {
   const [sortBy, setSortBy] = useState("recent")
   const [memoryItems, setMemoryItems] = useState<MemoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
@@ -49,95 +51,44 @@ export default function MemoryLibraryPage() {
         console.error("Failed to fetch memory items:", error)
         toast({
           title: "加载失败",
-          description: "无法加载记忆库项目，使用示例数据",
+          description: "无法加载记忆库项目，请刷新页面重试",
           variant: "destructive",
         })
-
-        // Use mock data if API fails
-        setMemoryItems([
-          {
-            id: 1,
-            title: "中国历史朝代顺序",
-            content: "夏、商、周、秦、汉、三国、晋、南北朝、隋、唐、五代十国、宋、元、明、清",
-            category: "历史",
-            createdAt: "2024-01-15",
-            nextReview: "2024-01-22",
-            reviewCount: 12,
-            mastery: 85,
-            tags: ["历史", "朝代", "顺序"],
-            type: "sequence",
-            difficulty: "medium",
-            starred: true,
-            daysUntilReview: 2,
-          },
-          {
-            id: 2,
-            title: "化学元素周期表前20个元素",
-            content: "氢氦锂铍硼碳氮氧氟氖钠镁铝硅磷硫氯氩钾钙",
-            category: "化学",
-            createdAt: "2024-01-10",
-            nextReview: "2024-01-21",
-            reviewCount: 8,
-            mastery: 72,
-            tags: ["化学", "元素", "周期表"],
-            type: "list",
-            difficulty: "hard",
-            starred: false,
-            daysUntilReview: 1,
-          },
-          {
-            id: 3,
-            title: "英语不规则动词变化",
-            content: "go-went-gone, see-saw-seen, do-did-done, have-had-had",
-            category: "语言",
-            createdAt: "2024-01-08",
-            nextReview: "2024-01-20",
-            reviewCount: 15,
-            mastery: 90,
-            tags: ["英语", "动词", "语法"],
-            type: "grammar",
-            difficulty: "easy",
-            starred: true,
-            daysUntilReview: 0,
-          },
-          {
-            id: 4,
-            title: "数学公式：二次方程求根公式",
-            content: "x = (-b ± √(b²-4ac)) / 2a",
-            category: "数学",
-            createdAt: "2024-01-05",
-            nextReview: "2024-01-23",
-            reviewCount: 6,
-            mastery: 65,
-            tags: ["数学", "公式", "二次方程"],
-            type: "formula",
-            difficulty: "hard",
-            starred: false,
-            daysUntilReview: 3,
-          },
-          {
-            id: 5,
-            title: "世界主要国家首都",
-            content: "中国-北京, 美国-华盛顿, 英国-伦敦, 法国-巴黎, 德国-柏林",
-            category: "地理",
-            createdAt: "2024-01-03",
-            nextReview: "2024-01-24",
-            reviewCount: 10,
-            mastery: 78,
-            tags: ["地理", "首都", "国家"],
-            type: "pairs",
-            difficulty: "medium",
-            starred: false,
-            daysUntilReview: 4,
-          },
-        ])
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchMemoryItems()
+
+    // Clean up notifications when the component unmounts
+    return () => {
+      clearAllScheduledNotifications();
+    };
   }, [toast])
+
+  // Effect for scheduling notifications
+  useEffect(() => {
+    if (memoryItems.length > 0) {
+      requestNotificationPermission().then(permission => {
+        if (permission === 'granted') {
+          scheduleReviewNotifications(memoryItems);
+        }
+      });
+    }
+  }, [memoryItems]);
+
+  const handleViewDetails = (id: string) => {
+    router.push(`/memory-item/${id}`)
+  }
+
+  const handleStartReview = async (id: string) => {
+    // Placeholder for the review functionality
+    toast({
+      title: "即将推出",
+      description: `“开始复习”功能正在开发中。`,
+    })
+  }
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -189,48 +140,44 @@ export default function MemoryLibraryPage() {
     starredItems: memoryItems.filter((item) => item.starred).length,
   }
 
-  const handleViewDetails = async (id: string | number) => {
-    try {
-      // In a real app, this would navigate to a details page
-      // For now, we'll just show a toast
-      toast({
-        title: "查看详情",
-        description: `查看记忆项目 #${id} 的详情`,
-      })
-    } catch (error) {
-      console.error("Error viewing details:", error)
+
+  const getRelativeTimeText = (reviewDate?: string | null): string => {
+    if (!reviewDate) {
+      return "无计划";
     }
-  }
 
-  const handleStartReview = async (id: string | number) => {
-    try {
-      // In a real app, this would navigate to a review page
-      // For now, we'll just show a toast
-      toast({
-        title: "开始复习",
-        description: `开始复习记忆项目 #${id}`,
-      })
-    } catch (error) {
-      console.error("Error starting review:", error)
+    const now = new Date().getTime();
+    const reviewTime = new Date(reviewDate).getTime();
+    const diffMillis = reviewTime - now;
+
+    if (diffMillis <= 0) {
+      const diffMinutes = Math.abs(Math.floor(diffMillis / 60000));
+      const diffHours = Math.floor(diffMinutes / 60);
+      if (diffHours > 24) {
+          return `已过期 ${Math.floor(diffHours/24)} 天`
+      }
+      if (diffHours > 0) {
+          return `已过期 ${diffHours} 小时`
+      }
+      return `已过期 ${diffMinutes} 分钟`;
     }
-  }
 
-  const getDaysText = (reviewDate?: string | null) => {
-    if (!reviewDate) return "无计划"
+    const diffSeconds = Math.floor(diffMillis / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0) // Normalize today to the start of the day
-    const review = new Date(reviewDate)
-    review.setHours(0, 0, 0, 0) // Normalize review date
-
-    const diffTime = review.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays < 0) return `已过期 ${-diffDays} 天`
-    if (diffDays === 0) return "今天"
-    if (diffDays === 1) return "明天"
-    return `${diffDays} 天后`
-  }
+    if (diffDays > 0) {
+      return `${diffDays}天 ${diffHours % 24}小时后`;
+    }
+    if (diffHours > 0) {
+      return `${diffHours}小时 ${diffMinutes % 60}分钟后`;
+    }
+    if (diffMinutes > 0) {
+      return `${diffMinutes}分钟后`;
+    }
+    return "即将开始";
+  };
 
   if (isLoading) {
     return (
@@ -464,7 +411,7 @@ export default function MemoryLibraryPage() {
                       </div>
                       <div className="flex items-center text-sm">
                         <Clock className="mr-1 h-3 w-3" />
-                        {getDaysText(item.next_review_date)}
+                        {getRelativeTimeText(item.next_review_date)}
                       </div>
                     </div>
 
@@ -477,13 +424,13 @@ export default function MemoryLibraryPage() {
                         开始复习
                       </Button>
                       <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
-                        onClick={() => handleViewDetails(item.id)}
-                      >
-                        查看详情
-                      </Button>
+                          size="sm"
+                          variant="outline"
+                          className="border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
+                          onClick={() => handleViewDetails(item.id)}
+                        >
+                          查看详情
+                        </Button>
                     </div>
                   </CardContent>
                 </Card>

@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import * as d3 from "d3"
-import { ZoomIn, ZoomOut, Move } from "lucide-react"
+import { toPng } from 'html-to-image';
+import { ZoomIn, ZoomOut, Move, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface MindMapNode {
@@ -173,6 +174,23 @@ export default function MindMap({ data }: MindMapProps) {
     }
   }
 
+  const handleSave = useCallback(() => {
+    if (svgRef.current === null) {
+      return;
+    }
+
+    toPng(svgRef.current, { cacheBust: true, backgroundColor: '#000000' })
+      .then((dataUrl) => {
+        const link = document.createElement('a');
+        link.download = 'mind-map.png';
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch((err) => {
+        console.error('Oops, something went wrong!', err);
+      });
+  }, [svgRef]);
+
   return (
     <div className="relative h-full w-full" ref={containerRef}>
       <div className="absolute right-4 top-4 z-10 flex flex-col space-y-2">
@@ -206,6 +224,15 @@ export default function MindMap({ data }: MindMapProps) {
           title="平移"
         >
           <Move className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="outline"
+          className="h-8 w-8 rounded-full border-green-400 bg-black/50 text-green-400 hover:bg-green-400/10"
+          onClick={handleSave}
+          title="保存为PNG"
+        >
+          <Download className="h-4 w-4" />
         </Button>
       </div>
       <div className="absolute bottom-4 left-4 z-10 rounded-md bg-black/50 px-2 py-1 text-xs text-white/70">

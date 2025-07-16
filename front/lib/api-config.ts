@@ -82,6 +82,18 @@ export const api = {
     return handleResponse<any[]>(response)
   },
 
+  getMemoryItem: async (id: string): Promise<MemoryItem> => {
+    const token = authManager.getToken()
+    if (!token) throw new Error("Not authenticated")
+
+    const response = await fetch(`${API_BASE_URL}/memory_items/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    return handleResponse<MemoryItem>(response)
+  },
+
   saveMemoryItem: async (item: MemoryItemCreate): Promise<MemoryItem> => {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
@@ -97,7 +109,7 @@ export const api = {
     return handleResponse<MemoryItem>(response)
   },
 
-  updateMemoryItemAids: async (itemId: number, aids: MemoryAids): Promise<MemoryItem> => {
+  updateMemoryItemAids: async (itemId: string, aids: MemoryAids): Promise<MemoryItem> => {
     const token = authManager.getToken();
     if (!token) throw new Error("Not authenticated");
 

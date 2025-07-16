@@ -1,0 +1,304 @@
+{
+	"info": {
+		"_postman_id": "a8a0b7e4-5b5a-4b1e-8b0a-3e2a6b2e4b1c",
+		"name": "MemBuddy API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"description": "API for MemBuddy application"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"a-strong-password\",\n    \"full_name\": \"Test User\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register a new user. The backend will send a confirmation email."
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Token is received\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.access_token).to.not.be.empty;",
+									"    pm.collectionVariables.set(\"jwt_token\", jsonData.access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"ccxrw0626@gmail.com\",\n    \"password\": \"password@ravey\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login to get a JWT token. The token is automatically saved to a collection variable `jwt_token`."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Memory Items",
+			"item": [
+				{
+					"name": "Get All Memory Items",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/memory_items?skip=0&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"memory_items"
+							],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Retrieves a list of memory items for the authenticated user."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Memory Item",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"The Ebbinghaus forgetting curve describes the decrease in ability of the brain to retain memory over time.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/memory_items",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"memory_items"
+							]
+						},
+						"description": "Creates a new memory item. The backend will automatically generate memory aids and a review schedule."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Memory Item",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/memory_items/your-item-id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"memory_items",
+								"your-item-id"
+							]
+						},
+						"description": "Retrieves a single memory item by its ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Memory Item Aids",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"memory_aids\": {\n        \"mindMap\": {\n            \"id\": \"root\",\n            \"label\": \"Forgetting Curve\",\n            \"children\": [\n                {\n                    \"id\": \"1\",\n                    \"label\": \"Concept\",\n                    \"children\": null\n                }\n            ]\n        },\n        \"mnemonics\": [\n            {\n                \"id\": \"m1\",\n                \"title\": \"Acronym\",\n                \"content\": \"EFC - Every Forgetful Chap\",\n                \"type\": \"Acronym\",\n                \"explanation\": \"To remember Ebbinghaus Forgetting Curve\"\n            }\n        ],\n        \"sensoryAssociations\": []\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/memory_items/your-item-id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"memory_items",
+								"your-item-id"
+							]
+						},
+						"description": "Updates the memory aids for a specific memory item."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Memory Item",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/memory_items/your-item-id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"memory_items",
+								"your-item-id"
+							]
+						},
+						"description": "Deletes a memory item and its associated aids and review schedules."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Memory Aids Generation",
+			"item": [
+				{
+					"name": "Generate Memory Aids",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"The mitochondria is the powerhouse of the cell.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/memory/generate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"memory",
+								"generate"
+							]
+						},
+						"description": "Generate memory aids for a given piece of content using the Gemini AI service."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Review Schedule",
+			"item": [
+				{
+					"name": "Get Review Schedule",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/review/schedule",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"review",
+								"schedule"
+							]
+						},
+						"description": "Retrieves the entire review schedule for the authenticated user."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

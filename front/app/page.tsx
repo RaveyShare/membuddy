@@ -17,6 +17,7 @@ import { authManager } from "@/lib/auth"
 import MindMap from "@/components/mind-map"
 import MemoryMnemonic from "@/components/memory-mnemonic"
 import SensoryAssociation from "@/components/sensory-association"
+import MemoryAidsViewer from "@/components/MemoryAidsViewer"
 import ShareDialog from "@/components/share-dialog"
 import LoadingSpinner from "@/components/loading-spinner"
 import { format } from "date-fns"
@@ -168,18 +169,35 @@ export default function Home() {
     router.push("/memory-aids")
   }
 
-  const getDaysText = (reviewDate: string | null) => {
-    if (!reviewDate) return "未设置"
-    const today = new Date()
-    const review = new Date(reviewDate)
-    const diffTime = review.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  const getRelativeTimeText = (reviewDate?: string | null): string => {
+    if (!reviewDate) {
+      return "无计划";
+    }
 
-    if (diffDays === 0) return "今天"
-    if (diffDays === 1) return "明天"
-    if (diffDays < 0) return "已过期"
-    return `${diffDays}天后`
-  }
+    const now = new Date().getTime();
+    const reviewTime = new Date(reviewDate).getTime();
+    const diffMillis = reviewTime - now;
+
+    if (diffMillis <= 0) {
+      return "已到期";
+    }
+
+    const diffSeconds = Math.floor(diffMillis / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) {
+      return `${diffDays}天 ${diffHours % 24}小时后`;
+    }
+    if (diffHours > 0) {
+      return `${diffHours}小时 ${diffMinutes % 60}分钟后`;
+    }
+    if (diffMinutes > 0) {
+      return `${diffMinutes}分钟后`;
+    }
+    return "即将开始";
+  };
 
   const getCategoryColor = (category: string | undefined) => {
     switch (category) {
@@ -369,45 +387,7 @@ export default function Home() {
                         <p className="text-white">{generatedContent}</p>
                       </div>
 
-                      <Tabs defaultValue="mindmap" className="w-full">
-                        <TabsList className="mb-4 grid w-full grid-cols-3 bg-white/5">
-                          <TabsTrigger value="mindmap" className="data-[state=active]:bg-cyan-400 data-[state=active]:text-black">
-                            思维导图
-                          </TabsTrigger>
-                          <TabsTrigger value="mnemonics" className="data-[state=active]:bg-violet-400 data-[state=active]:text-black">
-                            记忆口诀
-                          </TabsTrigger>
-                          <TabsTrigger value="sensory" className="data-[state=active]:bg-pink-400 data-[state=active]:text-black">
-                            感官联想
-                          </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="mindmap" className="mt-0">
-                          <div className="h-[300px] w-full overflow-hidden rounded-lg border border-white/10 bg-black/50">
-                            {generatedAids.mindMap && <MindMap data={generatedAids.mindMap} />}
-                          </div>
-                        </TabsContent>
-
-                        <TabsContent value="mnemonics" className="mt-0 space-y-4">
-                          {generatedAids.mnemonics.slice(0, 2).map((mnemonic: Mnemonic) => (
-                            <MemoryMnemonic
-                              key={mnemonic.id}
-                              mnemonic={mnemonic}
-                              onShare={() => handleShare("mnemonic", mnemonic)}
-                            />
-                          ))}
-                        </TabsContent>
-
-                        <TabsContent value="sensory" className="mt-0 space-y-4">
-                          {generatedAids.sensoryAssociations.slice(0, 1).map((association: SensoryAssociationType) => (
-                            <SensoryAssociation
-                              key={association.id}
-                              association={association}
-                              onShare={() => handleShare("sensory", association)}
-                            />
-                          ))}
-                        </TabsContent>
-                      </Tabs>
+                      <MemoryAidsViewer aids={generatedAids} onShare={handleShare} />
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -463,7 +443,7 @@ export default function Home() {
                                   <Calendar className="mr-1.5 h-3 w-3" />
                                   <span>{item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd HH:mm") : "无计划"}</span>
                                 </div>
-                                <p className="text-white/50">{getDaysText(item.next_review_date)}</p>
+                                <p className="text-white/50">{getRelativeTimeText(item.next_review_date)}</p>
                               </div>
                             </div>
                           </motion.div>

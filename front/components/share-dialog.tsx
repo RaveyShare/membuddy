@@ -89,7 +89,7 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
               </div>
               <div>
                 <h3 className="font-medium text-white">{content.title}</h3>
-                <p className="text-sm text-white/70">思维导图 • 中国历史朝代</p>
+                <p className="text-sm text-white/70">思维导图</p>
               </div>
             </div>
           </div>
@@ -239,9 +239,8 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
           <div className="flex w-full items-center justify-between">
             <div className="flex space-x-2">
               <Button
-                variant="outline"
                 size="sm"
-                className="border-white/10 text-white hover:bg-white/10"
+                className="bg-white/10 text-white/80 hover:bg-white/20"
                 onClick={() => onOpenChange(false)}
               >
                 关闭
