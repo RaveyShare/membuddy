@@ -19,6 +19,7 @@ import MemoryMnemonic from "@/components/memory-mnemonic"
 import SensoryAssociation from "@/components/sensory-association"
 import ShareDialog from "@/components/share-dialog"
 import LoadingSpinner from "@/components/loading-spinner"
+import { format } from "date-fns"
 import type { MemoryItem, MemoryAids, Mnemonic, SensoryAssociation as SensoryAssociationType } from "@/lib/types"
 
 export default function Home() {
@@ -457,12 +458,12 @@ export default function Home() {
                                 {/* Add category logic if needed */}
                               </div>
                               <p className="text-sm text-white/70 line-clamp-1 mt-1">{item.content}</p>
-                              <div className="mt-2 flex items-center justify-between">
-                                <div className="flex items-center text-sm text-cyan-400">
-                                  <Calendar className="mr-1 h-3 w-3" />
-                                  {/* Add review date logic if needed */}
+                              <div className="mt-2 flex items-center justify-between text-white/70 text-xs">
+                                <div className="flex items-center text-cyan-400">
+                                  <Calendar className="mr-1.5 h-3 w-3" />
+                                  <span>{item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd HH:mm") : "无计划"}</span>
                                 </div>
-                                <p className="text-xs text-white/50">{new Date(item.created_at).toLocaleDateString()}</p>
+                                <p className="text-white/50">{getDaysText(item.next_review_date)}</p>
                               </div>
                             </div>
                           </motion.div>
@@ -472,7 +473,7 @@ export default function Home() {
                       <div className="py-8 text-center">
                         <Brain className="mx-auto mb-2 h-8 w-8 text-white/30" />
                         <p className="text-sm text-white/50">还没有记忆项目</p>
-                        <p className="text-xs text-white/30">开始��录你想要记住的内容吧</p>
+                        <p className="text-xs text-white/30">开始记录你想要记住的内容吧</p>
                       </div>
                     )}
                   </CardContent>

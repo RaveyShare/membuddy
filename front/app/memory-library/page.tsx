@@ -460,7 +460,7 @@ export default function MemoryLibraryPage() {
                     <div className="mt-4 flex items-center justify-between text-xs text-white/60">
                       <div className="flex items-center text-sm text-cyan-400">
                         <Calendar className="mr-1 h-3 w-3" />
-                        {item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd") : "无计划"}
+                        {item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd HH:mm") : "无计划"}
                       </div>
                       <div className="flex items-center text-sm">
                         <Clock className="mr-1 h-3 w-3" />
