@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 import { ArrowLeft, Brain, Download, Share2 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
-import MindMap from "@/components/mind-map"
+import MindMap, { MindMapHandle } from "@/components/mind-map"
 import MemoryMnemonic from "@/components/memory-mnemonic"
 import SensoryAssociation from "@/components/sensory-association"
 import ShareDialog from "@/components/share-dialog"
@@ -67,7 +67,7 @@ const defaultMnemonics = [
     id: "rhyme",
     title: "朝代顺序歌诀",
     content:
-      "夏商与西周，东周分两段。\n春秋和战国，一统秦两汉。\n三分魏蜀吴，两晋前后延。\n南北朝并立，隋唐五代传。\n宋元明清后，皇朝至此完。",
+      "夏商与西周，东周分两段.\n春秋和战国，一统秦两汉.\n三分魏蜀吴，两晋前后延.\n南北朝并立，隋唐五代传.\n宋元明清后，皇朝至此完。",
     type: "rhyme",
   },
   {
@@ -137,6 +137,7 @@ export default function MemoryAidsPage() {
   const [generatedMindMap, setGeneratedMindMap] = useState(defaultMindMapData)
   const [generatedMnemonics, setGeneratedMnemonics] = useState(defaultMnemonics)
   const [sensoryAssociations, setSensoryAssociations] = useState(defaultSensoryAssociations)
+  const mindMapRef = useRef<MindMapHandle>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -208,6 +209,10 @@ export default function MemoryAidsPage() {
     setShareType(type)
     setShareContent(content)
     setShareDialogOpen(true)
+  }
+
+  const handleSaveMindMap = () => {
+    mindMapRef.current?.save()
   }
 
   const handleSaveToLibrary = async () => {
@@ -336,6 +341,7 @@ export default function MemoryAidsPage() {
                           variant="outline"
                           size="sm"
                           className="border-cyan-400 text-cyan-400 hover:bg-cyan-400/10 bg-transparent"
+                          onClick={handleSaveMindMap}
                         >
                           <Download className="mr-2 h-4 w-4" />
                           保存
@@ -354,7 +360,7 @@ export default function MemoryAidsPage() {
                       </div>
                     </div>
                     <div className="h-[500px] w-full overflow-hidden rounded-lg border border-white/10 bg-black/50 p-4">
-                      <MindMap data={generatedMindMap} />
+                      <MindMap ref={mindMapRef} data={generatedMindMap} />
                     </div>
                   </CardContent>
                 </Card>
