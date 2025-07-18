@@ -1,9 +1,9 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List, Any, Union
+from typing import Optional, List, Union
 from datetime import datetime
 import uuid
 
-# User schemas
+# --- User Schemas ---
 class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
@@ -15,13 +15,12 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-
 class User(UserBase):
     id: uuid.UUID
-    
     class Config:
         from_attributes = True
 
+# --- Memory Aids Schemas ---
 class MindMapNode(BaseModel):
     id: str
     label: str
@@ -63,33 +62,7 @@ class MemoryAids(BaseModel):
     mnemonics: List[Mnemonic]
     sensoryAssociations: List[SensoryAssociation]
 
-# Memory item schemas
-class MemoryItemBase(BaseModel):
-    content: str
-
-class MemoryItemCreate(MemoryItemBase):
-    memory_aids: Optional[MemoryAids] = None
-
-class MemoryItem(MemoryItemBase):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    created_at: datetime
-    title: str
-    content: str
-    memory_aids: Optional[MemoryAids] = None
-    tags: List[str] = ['default']
-    category: str = 'default'
-    difficulty: str = 'medium'
-    mastery: int = 50
-    reviewCount: int = 0
-    starred: bool = False
-    next_review_date: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-# Review schedule schemas
+# --- Review Schedule Schemas ---
 class ReviewScheduleBase(BaseModel):
     memory_item_id: uuid.UUID
     review_date: datetime
@@ -102,16 +75,52 @@ class ReviewSchedule(ReviewScheduleBase):
     id: uuid.UUID
     user_id: uuid.UUID
     created_at: datetime
-
     class Config:
         from_attributes = True
 
-class MemoryAidsUpdate(BaseModel):
-    memory_aids: MemoryAids
+# --- Memory Item Schemas ---
+class MemoryItemBase(BaseModel):
+    content: str
+    title: Optional[str] = None
+    category: Optional[str] = '其他'
+    tags: Optional[List[str]] = []
+    type: Optional[str] = 'general'
+    difficulty: Optional[str] = 'medium'
+    mastery: Optional[int] = 0
+    review_count: Optional[int] = 0
+    review_date: Optional[datetime] = None
+    next_review_date: Optional[datetime] = None
+    starred: Optional[bool] = False
 
+class MemoryItemCreate(MemoryItemBase):
+    memory_aids: Optional[MemoryAids] = None
 
-class MemoryAidsUpdate(BaseModel):
-    memory_aids: MemoryAids
-# --- Memory Aids Generation ---
+class MemoryItem(MemoryItemBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+    memory_aids: Optional[MemoryAids] = None
+    class Config:
+        from_attributes = True
+
+class MemoryItemUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+    starred: Optional[bool] = None
+    difficulty: Optional[str] = None
+    mastery: Optional[int] = None
+    review_count: Optional[int] = None
+    review_date: Optional[datetime] = None
+    next_review_date: Optional[datetime] = None
+    memory_aids: Optional[MemoryAids] = None
+
+# --- API Request/Response Schemas ---
 class MemoryGenerateRequest(BaseModel):
     content: str
+
+class ReviewCompletionRequest(BaseModel):
+    mastery: int
+    difficulty: str
