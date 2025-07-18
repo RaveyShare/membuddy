@@ -6,7 +6,7 @@
  */
 
 import { authManager, type AuthResponse, type LoginCredentials, type RegisterCredentials } from "./auth"
-import type { MemoryItem, MemoryItemCreate, MemoryAids } from "./types" // Assuming types.ts will be created
+import type { MemoryItem, MemoryItemCreate, MemoryAids, ReviewSchedule, ReviewCompletionRequest } from "./types"
 import { jwtDecode } from "jwt-decode";
 
 const API_BASE_URL = "http://localhost:8000/api"
@@ -70,7 +70,7 @@ export const api = {
   },
 
   // Memory items endpoints
-  async getMemoryItems(): Promise<any[]> {
+  getMemoryItems: async (): Promise<MemoryItem[]> => {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
@@ -79,7 +79,7 @@ export const api = {
         Authorization: `Bearer ${token}`,
       },
     })
-    return handleResponse<any[]>(response)
+    return handleResponse<MemoryItem[]>(response)
   },
 
   getMemoryItem: async (id: string): Promise<MemoryItem> => {
@@ -98,7 +98,7 @@ export const api = {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
-    const response = await fetch(`${API_BASE_URL}/memory_items/`, {
+    const response = await fetch(`${API_BASE_URL}/memory_items`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -109,7 +109,7 @@ export const api = {
     return handleResponse<MemoryItem>(response)
   },
 
-  updateMemoryItemAids: async (itemId: string, aids: MemoryAids): Promise<MemoryItem> => {
+  updateMemoryItem: async (itemId: string, updates: Partial<MemoryItem>): Promise<MemoryItem> => {
     const token = authManager.getToken();
     if (!token) throw new Error("Not authenticated");
 
@@ -119,7 +119,35 @@ export const api = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ memory_aids: aids }),
+      body: JSON.stringify(updates),
+    });
+    return handleResponse<MemoryItem>(response);
+  },
+
+  // Review schedules endpoints
+  getReviewSchedules: async (memoryItemId: string): Promise<ReviewSchedule[]> => {
+    const token = authManager.getToken();
+    if (!token) throw new Error("Not authenticated");
+
+    const response = await fetch(`${API_BASE_URL}/review_schedules?memory_item_id=${memoryItemId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return handleResponse<ReviewSchedule[]>(response);
+  },
+
+  completeReview: async (scheduleId: string, reviewData: ReviewCompletionRequest): Promise<MemoryItem> => {
+    const token = authManager.getToken();
+    if (!token) throw new Error("Not authenticated");
+
+    const response = await fetch(`${API_BASE_URL}/review_schedules/${scheduleId}/complete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(reviewData),
     });
     return handleResponse<MemoryItem>(response);
   },

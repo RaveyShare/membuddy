@@ -161,6 +161,13 @@ def get_memory_item(item_id: uuid.UUID, current_user: dict = Depends(get_current
 @app.put("/api/memory_items/{item_id}", response_model=schemas.MemoryItem)
 def update_memory_item(item_id: uuid.UUID, item_update: schemas.MemoryItemUpdate, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
     update_data = item_update.model_dump(exclude_unset=True, exclude={'memory_aids'})
+    
+    # Manually serialize datetime objects to ISO 8601 strings
+    if 'next_review_date' in update_data and isinstance(update_data['next_review_date'], datetime):
+        update_data['next_review_date'] = update_data['next_review_date'].isoformat()
+    if 'review_date' in update_data and isinstance(update_data['review_date'], datetime):
+        update_data['review_date'] = update_data['review_date'].isoformat()
+
     if update_data:
         supabase.table("memory_items").update(update_data).eq("id", str(item_id)).eq("user_id", current_user['id']).execute()
 
@@ -210,8 +217,8 @@ def complete_review(schedule_id: uuid.UUID, review_data: schemas.ReviewCompletio
         "mastery": review_data.mastery,
         "difficulty": review_data.difficulty,
         "review_count": new_review_count,
-        "review_date": datetime.utcnow(),
-        "next_review_date": datetime.utcnow() + next_review_delta
+        "review_date": datetime.utcnow().isoformat(),
+        "next_review_date": (datetime.utcnow() + next_review_delta).isoformat()
     }
     supabase.table("memory_items").update(update_data).eq("id", memory_item_id).execute()
 
