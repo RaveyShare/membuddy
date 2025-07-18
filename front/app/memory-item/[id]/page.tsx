@@ -179,29 +179,33 @@ export default function MemoryItemDetailsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-white/70">创建于</span>
-                      <span className="font-medium">{format(new Date(item.created_at), "yyyy-MM-dd")}</span>
+                      <span className="text-gray-400">创建于</span>
+                      <span className="font-medium text-gray-200">{format(new Date(item.created_at), "yyyy-MM-dd")}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white/70">下次复习</span>
+                      <span className="text-gray-400">上次复习</span>
+                      <span className="font-medium text-gray-200">{format(new Date(item.review_date), "yyyy-MM-dd")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">下次复习</span>
                       <span className="font-medium text-cyan-400">
                         {item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd HH:mm") : "无计划"}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white/70">剩余时间</span>
-                      <span className="font-medium">{getRelativeTimeText(item.next_review_date)}</span>
+                      <span className="text-gray-400">剩余时间</span>
+                      <span className="font-medium text-yellow-500">{getRelativeTimeText(item.next_review_date)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white/70">掌握度</span>
-                      <span className="font-medium">{item.mastery}%</span>
+                      <span className="text-gray-400">掌握度</span>
+                      <span className="font-medium text-green-400">{item.mastery}%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white/70">复习次数</span>
-                      <span className="font-medium">{item.reviewCount}</span>
+                      <span className="text-gray-400">复习次数</span>
+                      <span className="font-medium text-violet-400">{item.review_count}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white/70">难度</span>
+                      <span className="text-gray-400">难度</span>
                       <Badge variant="secondary" className={
                         item.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
                         item.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -211,12 +215,12 @@ export default function MemoryItemDetailsPage() {
                       </Badge>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white/70">分类</span>
-                      <Badge variant="outline">{item.category}</Badge>
+                      <span className="text-gray-400">分类</span>
+                      <Badge variant="outline" className="border-cyan-400/50 text-cyan-400">{item.category}</Badge>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-white/70"><Tag className="inline h-4 w-4 mr-1"/>标签</span>
-                      {item.tags.map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                      <span className="text-gray-400"><Tag className="inline h-4 w-4 mr-1"/>标签</span>
+                      {item.tags.map(tag => <Badge key={tag} variant="outline" className="border-cyan-400/50 text-cyan-400">{tag}</Badge>)}
                     </div>
                   </CardContent>
                 </Card>
