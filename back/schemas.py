@@ -124,3 +124,7 @@ class MemoryGenerateRequest(BaseModel):
 class ReviewCompletionRequest(BaseModel):
     mastery: int
     difficulty: str
+
+class ForgotPasswordPayload(BaseModel):
+    email: EmailStr
+

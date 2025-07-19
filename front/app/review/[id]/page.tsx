@@ -12,37 +12,20 @@ import { Slider } from "@/components/ui/slider"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api } from "@/lib/api-config"
 import { useToast } from "@/components/ui/use-toast"
 import AuthGuard from "@/components/auth/auth-guard"
 import { format } from "date-fns"
 import MemoryAidsViewer from "@/components/MemoryAidsViewer"
-import type { MemoryItem, ReviewSchedule } from "@/lib/types"
+import type { MemoryItem, ReviewSchedule, MemoryAids } from "@/lib/types"
 
-// Reusable component for displaying memory status
 const MemoryStatusCard = ({ item }: { item: MemoryItem }) => {
-  const getRelativeTimeText = (reviewDate?: string | null): string => {
-    if (!reviewDate) return "无计划"
-    const now = new Date().getTime()
-    const reviewTime = new Date(reviewDate).getTime()
-    const diffMillis = reviewTime - now
-    if (diffMillis <= 0) return "已到期"
-    const diffMinutes = Math.floor(diffMillis / (1000 * 60))
-    const diffHours = Math.floor(diffMinutes / 60)
-    const diffDays = Math.floor(diffHours / 24)
-    if (diffDays > 0) return `${diffDays}天后`
-    if (diffHours > 0) return `${diffHours}小时后`
-    return `${diffMinutes}分钟后`
-  }
-
   return (
     <Card className="border border-white/10 bg-white/5">
       <CardHeader>
-        <CardTitle className="flex items-center text-cyan-400">
-          <BarChart className="mr-2 h-5 w-5" />
-          当前状态
-        </CardTitle>
+        <CardTitle className="flex items-center text-cyan-400"><BarChart className="mr-2 h-5 w-5" />当前状态</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <div className="flex justify-between">
@@ -85,21 +68,20 @@ export default function ReviewPage() {
   const itemId = params.id as string
 
   const [item, setItem] = useState<MemoryItem | null>(null)
+  const [editableItem, setEditableItem] = useState<MemoryItem | null>(null)
   const [currentSchedule, setCurrentSchedule] = useState<ReviewSchedule | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Form state
   const [mastery, setMastery] = useState(0)
   const [difficulty, setDifficulty] = useState("medium")
-  const [nextReviewDate, setNextReviewDate] = useState<Date>(new Date())
+  const [nextReviewDate, setNextReviewDate] = useState(new Date())
   const [category, setCategory] = useState("")
   const [tags, setTags] = useState<string[]>([])
   const [currentTag, setCurrentTag] = useState("")
   
   useEffect(() => {
     if (!itemId) return
-
     const fetchData = async () => {
       try {
         setIsLoading(true)
@@ -109,7 +91,8 @@ export default function ReviewPage() {
         ]);
 
         setItem(fetchedItem)
-        // Initialize form with current item state
+        setEditableItem(fetchedItem)
+        
         setMastery(fetchedItem.mastery)
         setDifficulty(fetchedItem.difficulty)
         setNextReviewDate(fetchedItem.next_review_date ? new Date(fetchedItem.next_review_date) : new Date())
@@ -134,6 +117,12 @@ export default function ReviewPage() {
     fetchData()
   }, [itemId, router, toast])
 
+  const handleAidsChange = (newAids: MemoryAids) => {
+    if (editableItem) {
+      setEditableItem({ ...editableItem, memory_aids: newAids });
+    }
+  };
+
   const handleTagAdd = () => {
     if (currentTag && !tags.includes(currentTag)) {
       setTags([...tags, currentTag.trim()])
@@ -146,20 +135,20 @@ export default function ReviewPage() {
   }
 
   const handleCompleteReview = async () => {
-    if (!item || !currentSchedule) {
-        toast({ title: "错误", description: "没有待复习的计划。", variant: "destructive" });
+    if (!item || !currentSchedule || !editableItem) {
+        toast({ title: "错误", description: "数据不完整，无法保存。", variant: "destructive" });
         return;
     }
     setIsSubmitting(true)
     try {
-      // First, mark the review as complete
       await api.completeReview(currentSchedule.id, { mastery, difficulty })
       
-      // Then, update the item with all the new details
       await api.updateMemoryItem(item.id, {
+        content: editableItem.content,
+        category: category,
+        tags: tags,
         next_review_date: nextReviewDate.toISOString(),
-        category,
-        tags
+        memory_aids: editableItem.memory_aids
       })
 
       toast({ title: "复习完成！", description: `“${item.title}”已更新。` })
@@ -172,7 +161,7 @@ export default function ReviewPage() {
     }
   }
 
-  if (isLoading || !item) {
+  if (isLoading || !editableItem) {
     return (
       <div className="flex h-screen items-center justify-center bg-black">
         <Loader2 className="h-12 w-12 animate-spin text-cyan-400" />
@@ -183,35 +172,60 @@ export default function ReviewPage() {
   return (
     <AuthGuard requireAuth={true}>
       <div className="min-h-screen bg-black text-white">
-        <main className="container mx-auto grid grid-cols-1 gap-8 px-4 py-8 lg:grid-cols-3">
-          {/* Left Column */}
+        <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-black/50 backdrop-blur-xl">
+          <div className="container flex h-16 items-center justify-between px-4">
+            <Link className="flex items-center space-x-2 font-bold" href="/">
+              <Brain className="h-6 w-6 text-cyan-400" />
+              <span>小杏仁记忆搭子</span>
+            </Link>
+            <Button variant="ghost" onClick={() => router.push("/memory-library")}>
+              返回记忆库
+            </Button>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-4 pt-24 pb-12 grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-8">
             <Card className="border border-white/10 bg-white/5">
               <CardHeader>
-                <CardTitle className="text-2xl text-cyan-400">{item.title}</CardTitle>
-                <p className="mt-4 whitespace-pre-wrap text-base text-white/80">{item.content}</p>
+                <CardTitle className="text-2xl text-cyan-400">{editableItem.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                {item.memory_aids ? <MemoryAidsViewer aids={item.memory_aids} onShare={() => {}} /> : <p className="text-center text-white/50">没有AI记忆辅助工具。</p>}
+                <Textarea
+                  value={editableItem.content}
+                  onChange={(e) => setEditableItem({ ...editableItem, content: e.target.value })}
+                  className="w-full min-h-[150px] text-base rounded-md border-gray-600 bg-gray-800/50 text-gray-200 focus:border-cyan-400 focus:ring-cyan-400"
+                />
               </CardContent>
             </Card>
+
+            {editableItem.memory_aids && (
+              <Card className="border border-white/10 bg-white/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-cyan-400"><Eye className="mr-2 h-5 w-5" />AI 记忆辅助</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MemoryAidsViewer 
+                    aids={editableItem.memory_aids} 
+                    onShare={() => {}} 
+                    isEditable={true}
+                    onAidsChange={handleAidsChange}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {/* Right Column */}
           <div className="lg:col-span-1 space-y-8">
             <MemoryStatusCard item={item} />
 
             <Card className="sticky top-8 border border-white/10 bg-white/5">
               <CardHeader>
-                <CardTitle className="flex items-center text-violet-400">
-                  <Wand2 className="mr-2 h-5 w-5" />
-                  更新复习状态
-                </CardTitle>
+                <CardTitle className="flex items-center text-violet-400"><Wand2 className="mr-2 h-5 w-5" />更新复习状态</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Mastery & Difficulty */}
                 <div>
-                  <Label htmlFor="mastery" className="text-gray-300">本次掌握度: <span className="font-bold text-green-400">{mastery}%</span></Label>
+                  <Label className="text-gray-300">本次掌握度: <span className="font-bold text-green-400">{mastery}%</span></Label>
                   <Slider value={[mastery]} onValueChange={(v) => setMastery(v[0])} className="mt-2" />
                 </div>
                 <div>
@@ -237,8 +251,6 @@ export default function ReviewPage() {
                     })}
                   </RadioGroup>
                 </div>
-
-                {/* Next Review Date/Time */}
                 <div>
                   <Label htmlFor="next-review-date" className="text-gray-300">下次复习时间</Label>
                   <Input
@@ -249,8 +261,6 @@ export default function ReviewPage() {
                     className="mt-2 block w-full rounded-md border-gray-600 bg-gray-800/50 text-gray-200 focus:border-cyan-400 focus:ring-cyan-400 dark:[color-scheme:dark]"
                   />
                 </div>
-
-                {/* Category */}
                 <div>
                   <Label htmlFor="category" className="text-gray-300">分类</Label>
                   <Select value={category} onValueChange={setCategory}>
@@ -264,8 +274,6 @@ export default function ReviewPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Tags */}
                 <div>
                   <Label htmlFor="tags" className="text-gray-300">标签</Label>
                   <div className="mt-2 flex gap-2">
@@ -290,7 +298,6 @@ export default function ReviewPage() {
                     ))}
                   </div>
                 </div>
-
                 <Button
                   onClick={handleCompleteReview}
                   disabled={isSubmitting || !currentSchedule}

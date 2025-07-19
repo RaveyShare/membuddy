@@ -74,6 +74,17 @@ def login(user: schemas.UserLogin, supabase: Client = Depends(get_anon_supabase)
     except AuthApiError as e:
         raise HTTPException(status_code=e.status, detail=e.message)
 
+
+
+@app.post("/api/auth/forgot-password", status_code=status.HTTP_200_OK)
+def forgot_password(payload: schemas.ForgotPasswordPayload, supabase: Client = Depends(get_anon_supabase)):
+    try:
+        supabase.auth.reset_password_for_email(email=payload.email)
+        return {"message": "Password reset email sent successfully."}
+    except Exception as e:
+        logger.error(f"Forgot password attempt for {payload.email} resulted in error: {e}")
+        return {"message": "If an account with this email exists, a password reset link has been sent."}
+
 # --- Memory Item CRUD ---
 @app.get("/api/memory_items", response_model=List[schemas.MemoryItem])
 def get_memory_items(skip: int = 0, limit: int = 100, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
