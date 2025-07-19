@@ -167,6 +167,29 @@ export const api = {
     })
     return handleResponse<MemoryAids>(response)
   },
+
+ deleteMemoryItem: async (id: string): Promise<void> => {
+  const token = authManager.getToken()
+  if (!token) throw new Error("Not authenticated")
+
+  const response = await fetch(`${API_BASE_URL}/memory_items/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Delete failed: ${response.status} - ${errorText}`)
+  }
+
+  // 不需要返回内容
+
+
+  return handleResponse<MemoryItem>(response)
+}
+
 }
 
 export default api
