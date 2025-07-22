@@ -124,6 +124,21 @@ export const api = {
     return handleResponse<MemoryItem>(response);
   },
 
+  updateMemoryItemAids: async (itemId: string, aids: MemoryAids): Promise<MemoryItem> => {
+    const token = authManager.getToken();
+    if (!token) throw new Error("Not authenticated");
+
+    const response = await fetch(`${API_BASE_URL}/memory_items/${itemId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ memory_aids: aids }),
+    });
+    return handleResponse<MemoryItem>(response);
+  },
+
   // Review schedules endpoints
   getReviewSchedules: async (memoryItemId: string): Promise<ReviewSchedule[]> => {
     const token = authManager.getToken();

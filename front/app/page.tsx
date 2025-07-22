@@ -83,59 +83,67 @@ export default function Home() {
     e.preventDefault()
     if (!inputValue.trim() || !isAuthenticated) return
 
-    let savedItem: MemoryItem | null = null;
+    setIsLoading(true)
+    setShowGeneratedContent(false)
+    const contentToSave = inputValue
+    setInputValue("") // 为了更好的用户体验，立即清空输入框
+
+    let savedItem: MemoryItem;
 
     try {
-      setIsLoading(true)
-      setGeneratedContent(inputValue)
-      setShowGeneratedContent(false) // Hide previous results
+      // 步骤 1: 保存初始项目。这个操作很快，我们等待它完成。
+      savedItem = await api.saveMemoryItem({ content: contentToSave })
 
-      toast({
-        title: "正在保存...",
-        description: "正在将您的内容保存到记忆库。",
-        open: true,
-      })
-
-      // 1. Save the initial item with just the content
-      savedItem = await api.saveMemoryItem({ content: inputValue })
-      setMemoryItems((prev) => [savedItem!, ...prev.slice(0, 4)])
-      setInputValue("")
-
+      // 步骤 2: 使用新项目乐观地更新UI。
+      setMemoryItems((prev) => [savedItem, ...prev.slice(0, 4)])
+      setIsLoading(false) // 停止主要的加载动画。
       toast({
         title: "保存成功",
-        description: "已添加到提醒事项。现在开始生成 AI 辅助...",
-        open: true,
+        description: "已添加到提醒事项。AI 正在后台生成辅助工具...",
       })
-
-      // 2. Generate memory aids in the background
-      const memoryAids = await api.generateMemoryAids(savedItem.content)
-      setGeneratedAids(memoryAids)
-      setShowGeneratedContent(true) // Show the new results
-
-      // 3. Update the item with the generated aids
-      if (savedItem.id) {
-         const updatedItem = await api.updateMemoryItemAids(savedItem.id, memoryAids);
-         // Update the specific item in the list with the full data
-         setMemoryItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-      }
-
-      toast({
-        title: "生成完成",
-        description: "记忆辅助工具已生成并更新。",
-        open: true,
-      })
-
     } catch (error) {
-      console.error("Error in handleSubmit:", error)
-      toast({
-        title: "操作失败",
-        description: error instanceof Error ? error.message : "发生未知错误，请稍后再试。",
-        variant: "destructive",
-        open: true,
-      })
-    } finally {
+      console.error("Error saving initial memory item:", error)
+      setInputValue(contentToSave) // 如果保存失败，恢复输入框内容
       setIsLoading(false)
+      toast({
+        title: "保存失败",
+        description: error instanceof Error ? error.message : "无法保存您的项目，请稍后再试。",
+        variant: "destructive",
+      })
+      return // 如果初始保存失败，则停止执行
     }
+
+    // 步骤 3: 在后台生成辅助工具。“即发即忘”。
+    // 我们不等待这部分完成。
+    (async () => {
+      try {
+        const memoryAids = await api.generateMemoryAids(savedItem.content)
+
+        // 当AI内容准备好后，显示生成的内容部分
+        setGeneratedContent(savedItem.content)
+        setGeneratedAids(memoryAids)
+        setShowGeneratedContent(true)
+
+        const updatedItem = await api.updateMemoryItemAids(savedItem.id, memoryAids)
+
+        // 使用完整数据（包括辅助工具）更新列表中的特定项目
+        setMemoryItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item))
+
+        toast({
+          title: "AI 辅助已生成",
+          description: `“${savedItem.content.substring(0, 20)}...”的记忆辅助工具已就绪。`,
+        })
+      } catch (error) {
+        console.error("Error generating memory aids in background:", error)
+        toast({
+          title: "AI 辅助生成失败",
+          description: `无法为“${savedItem.content.substring(0, 20)}...”生成辅助工具。`,
+          variant: "destructive",
+        })
+        // 可选：更新列表中的项目以显示错误状态
+        // setMemoryItems(prev => prev.map(item => item.id === savedItem.id ? { ...item, error: "AI generation failed" } : item))
+      }
+    })();
   }
 
   const handleMemoryItemClick = (item: MemoryItem) => {
