@@ -14,19 +14,34 @@ import AuthGuard from "@/components/auth/auth-guard"
 import { formatInLocalTimezone } from "@/lib/date"
 import MemoryAidsViewer from "@/components/MemoryAidsViewer"
 import type { MemoryItem } from "@/lib/types"
-import { format } from "date-fns";
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+// 扩展 dayjs 插件
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 
 const MemoryStatusCard = ({ item }: { item: MemoryItem }) => {
   const getRelativeTimeText = (reviewDate?: string | null): string => {
     if (!reviewDate) return "无计划"
-    const now = new Date().getTime()
-    const reviewTime = new Date(reviewDate).getTime()
-    const diffMillis = reviewTime - now
+    
+    // 使用 dayjs 处理 UTC 日期时间
+    const userTimezone = dayjs.tz.guess()
+    const now = dayjs()
+    const reviewTime = dayjs.utc(reviewDate).tz(userTimezone)
+    
+    // 计算时间差（毫秒）
+    const diffMillis = reviewTime.diff(now)
+    
     if (diffMillis <= 0) return "已到期"
+    
+    // 计算时间差（分钟、小时、天）
     const diffMinutes = Math.floor(diffMillis / (1000 * 60))
     const diffHours = Math.floor(diffMinutes / 60)
     const diffDays = Math.floor(diffHours / 24)
+    
     if (diffDays > 0) return `${diffDays}天后`
     if (diffHours > 0) return `${diffHours}小时后`
     return `${diffMinutes}分钟后`
@@ -43,16 +58,16 @@ const MemoryStatusCard = ({ item }: { item: MemoryItem }) => {
       <CardContent className="space-y-4 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-400">创建于</span>
-          <span className="font-medium text-gray-200">{format(new Date(item.created_at), "yyyy-MM-dd")}</span>
+          <span className="font-medium text-gray-200">{formatInLocalTimezone(item.created_at, "YYYY-MM-DD")}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">上次复习</span>
-          <span className="font-medium text-gray-200">{format(new Date(item.review_date), "yyyy-MM-dd")}</span>
+          <span className="font-medium text-gray-200">{item.created_at ? formatInLocalTimezone(item.created_at, "YYYY-MM-DD") : "无记录"}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">下次复习</span>
           <span className="font-medium text-cyan-400">
-            {item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd HH:mm") : "无计划"}
+            {item.next_review_date ? formatInLocalTimezone(item.next_review_date, "YYYY-MM-DD HH:mm") : "无计划"}
           </span>
         </div>
         <div className="flex justify-between">
@@ -65,7 +80,7 @@ const MemoryStatusCard = ({ item }: { item: MemoryItem }) => {
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">复习次数</span>
-          <span className="font-medium text-violet-400">{item.review_count}</span>
+          <span className="font-medium text-violet-400">{item.reviewCount}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">难度</span>
@@ -107,7 +122,7 @@ export default function MemoryItemDetailsPage() {
         setItem(fetchedItem)
       } catch (error) {
         console.error("Failed to fetch memory item:", error)
-        toast({ title: "加载失败", variant: "destructive" })
+        toast({ title: "加载失败", variant: "destructive", open: true })
         router.push("/memory-library")
       } finally {
         setIsLoading(false)

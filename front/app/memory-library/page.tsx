@@ -29,9 +29,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { api } from "@/lib/api-config"
 import { useToast } from "@/components/ui/use-toast"
 import AuthGuard from "@/components/auth/auth-guard"
-import { format } from "date-fns"
+import { formatInLocalTimezone } from "@/lib/date"
 import { requestNotificationPermission, scheduleReviewNotifications, clearAllScheduledNotifications } from "@/lib/notification"
 import { MemoryItem } from "@/lib/types"
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+// 扩展 dayjs 插件
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 export default function MemoryLibraryPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -49,7 +56,7 @@ export default function MemoryLibraryPage() {
         setMemoryItems(items)
       } catch (error) {
         console.error("Failed to fetch memory items:", error)
-        toast({ title: "加载失败", variant: "destructive" })
+        toast({ title: "加载失败", variant: "destructive", open: true })
       } finally {
         setIsLoading(false)
       }
@@ -78,10 +85,10 @@ export default function MemoryLibraryPage() {
       try {
         await api.deleteMemoryItem(itemToDelete.id);
         setMemoryItems(prevItems => prevItems.filter(item => item.id !== itemToDelete.id));
-        toast({ title: "删除成功", description: `“${itemToDelete.title}”已被删除。` });
+        toast({ title: "删除成功", description: `"${itemToDelete.title}"已被删除。`, open: true });
       } catch (error) {
         console.error("Failed to delete memory item:", error);
-        toast({ title: "删除失败", variant: "destructive" });
+        toast({ title: "删除失败", variant: "destructive", open: true });
       }
     }
   };
@@ -117,7 +124,7 @@ export default function MemoryLibraryPage() {
       case "mastery":
         return b.mastery - a.mastery
       case "reviews":
-        return b.review_count - a.review_count
+        return b.reviewCount - a.reviewCount
       case "alphabetical":
         return a.title.localeCompare(b.title)
       default:
@@ -128,19 +135,28 @@ export default function MemoryLibraryPage() {
   const stats = {
     totalItems: memoryItems.length,
     averageMastery: Math.round(memoryItems.reduce((sum, item) => sum + item.mastery, 0) / memoryItems.length) || 0,
-    totalReviews: memoryItems.reduce((sum, item) => sum + item.review_count, 0),
+    totalReviews: memoryItems.reduce((sum, item) => sum + item.reviewCount, 0),
     starredItems: memoryItems.filter((item) => item.starred).length,
   }
 
   const getRelativeTimeText = (reviewDate?: string | null): string => {
     if (!reviewDate) return "无计划"
-    const now = new Date().getTime()
-    const reviewTime = new Date(reviewDate).getTime()
-    const diffMillis = reviewTime - now
+    
+    // 使用 dayjs 处理 UTC 日期时间
+    const userTimezone = dayjs.tz.guess()
+    const now = dayjs()
+    const reviewTime = dayjs.utc(reviewDate).tz(userTimezone)
+    
+    // 计算时间差（毫秒）
+    const diffMillis = reviewTime.diff(now)
+    
     if (diffMillis <= 0) return "已到期"
+    
+    // 计算时间差（分钟、小时、天）
     const diffMinutes = Math.floor(diffMillis / (1000 * 60))
     const diffHours = Math.floor(diffMinutes / 60)
     const diffDays = Math.floor(diffHours / 24)
+    
     if (diffDays > 0) return `${diffDays}天后`
     if (diffHours > 0) return `${diffHours}小时后`
     return `${diffMinutes}分钟后`
@@ -224,7 +240,7 @@ export default function MemoryLibraryPage() {
                       <div className="h-2 w-full rounded-full bg-white/10"><div className="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" style={{ width: `${item.mastery}%` }} /></div>
                     </div>
                     <div className="mt-4 flex items-center justify-between text-xs text-white/60">
-                      <div className="flex items-center text-sm text-cyan-400"><Calendar className="mr-2 h-3 w-3" />{item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd HH:mm") : "无计划"}</div>
+                      <div className="flex items-center text-sm text-cyan-400"><Calendar className="mr-2 h-3 w-3" />{item.next_review_date ? formatInLocalTimezone(item.next_review_date, "YYYY-MM-DD HH:mm") : "无计划"}</div>
                       <div className="flex items-center text-sm"><Clock className="mr-1 h-3 w-3" />{getRelativeTimeText(item.next_review_date)}</div>
                     </div>
                     <div className="mt-4 flex gap-2">

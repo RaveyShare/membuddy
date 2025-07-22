@@ -17,11 +17,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api } from "@/lib/api-config"
 import { useToast } from "@/components/ui/use-toast"
 import AuthGuard from "@/components/auth/auth-guard"
-import { format } from "date-fns"
+import { formatInLocalTimezone } from "@/lib/date"
 import MemoryAidsViewer from "@/components/MemoryAidsViewer"
-import type { MemoryItem, ReviewSchedule, MemoryAids } from "@/lib/types"
+import type { MemoryItem, MemoryAids } from "@/lib/types"
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 
-const MemoryStatusCard = ({ item }: { item: MemoryItem }) => {
+// 扩展 dayjs 插件
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+// 临时定义 ReviewSchedule 类型
+interface ReviewSchedule {
+  id: string;
+  review_date: string;
+  completed: boolean;
+}
+
+const MemoryStatusCard = ({ item }: { item: MemoryItem | null }) => {
+  if (!item) return null;
   return (
     <Card className="border border-white/10 bg-white/5">
       <CardHeader>
@@ -31,7 +46,7 @@ const MemoryStatusCard = ({ item }: { item: MemoryItem }) => {
         <div className="flex justify-between">
           <span className="text-gray-400">下次复习</span>
           <span className="font-medium text-cyan-400">
-            {item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd HH:mm") : "无计划"}
+            {item.next_review_date ? formatInLocalTimezone(item.next_review_date, "YYYY-MM-DD HH:mm") : "无计划"}
           </span>
         </div>
         <div className="flex justify-between">
@@ -95,7 +110,17 @@ export default function ReviewPage() {
         
         setMastery(fetchedItem.mastery)
         setDifficulty(fetchedItem.difficulty)
-        setNextReviewDate(fetchedItem.next_review_date ? new Date(fetchedItem.next_review_date) : new Date())
+        
+        // 确保从后端获取的 UTC 日期时间正确转换为本地时间
+        if (fetchedItem.next_review_date) {
+          // 使用 dayjs 处理 UTC 日期时间
+          const userTimezone = dayjs.tz.guess();
+          const localDate = dayjs.utc(fetchedItem.next_review_date).tz(userTimezone).toDate();
+          setNextReviewDate(localDate);
+        } else {
+          setNextReviewDate(new Date());
+        }
+        
         setCategory(fetchedItem.category)
         setTags(fetchedItem.tags)
 
@@ -108,7 +133,7 @@ export default function ReviewPage() {
         }
       } catch (error) {
         console.error("Failed to fetch review data:", error)
-        toast({ title: "加载失败", variant: "destructive" })
+        toast({ title: "加载失败", variant: "destructive", open: true })
         router.push("/memory-library")
       } finally {
         setIsLoading(false)
@@ -136,26 +161,30 @@ export default function ReviewPage() {
 
   const handleCompleteReview = async () => {
     if (!item || !currentSchedule || !editableItem) {
-        toast({ title: "错误", description: "数据不完整，无法保存。", variant: "destructive" });
+        toast({ title: "错误", description: "数据不完整，无法保存。", variant: "destructive", open: true });
         return;
     }
     setIsSubmitting(true)
     try {
       await api.completeReview(currentSchedule.id, { mastery, difficulty })
       
+      // 将本地时间直接转换为 ISO 字符串（这已经是 UTC 时间）
+      // 注意：不需要使用 Date.UTC 进行额外转换，因为 toISOString() 已经是 UTC 格式
+      const utcNextReviewDate = dayjs(nextReviewDate).toISOString();
+      
       await api.updateMemoryItem(item.id, {
         content: editableItem.content,
         category: category,
         tags: tags,
-        next_review_date: nextReviewDate.toISOString(),
+        next_review_date: utcNextReviewDate,
         memory_aids: editableItem.memory_aids
       })
 
-      toast({ title: "复习完成！", description: `“${item.title}”已更新。` })
+      toast({ title: "复习完成！", description: `"${item.title}"已更新。`, open: true })
       router.push("/memory-library")
     } catch (error) {
       console.error("Failed to complete review:", error)
-      toast({ title: "更新失败", variant: "destructive" })
+      toast({ title: "更新失败", variant: "destructive", open: true })
     } finally {
       setIsSubmitting(false)
     }
@@ -207,9 +236,7 @@ export default function ReviewPage() {
                 <CardContent>
                   <MemoryAidsViewer 
                     aids={editableItem.memory_aids} 
-                    onShare={() => {}} 
-                    isEditable={true}
-                    onAidsChange={handleAidsChange}
+                    onShare={() => {}}
                   />
                 </CardContent>
               </Card>
@@ -235,7 +262,7 @@ export default function ReviewPage() {
                       {value: "easy", label: "简单", color: "green"},
                       {value: "medium", label: "中等", color: "yellow"},
                       {value: "hard", label: "困难", color: "red"}
-                    ].map(({value, label, color}) => {
+                    ].map(({value, label, color}: {value: string, label: string, color: 'green' | 'yellow' | 'red'}) => {
                       const isSelected = difficulty === value;
                       const colorClasses = {
                         green: 'border-green-500 bg-green-500/20 text-green-300',
@@ -256,8 +283,12 @@ export default function ReviewPage() {
                   <Input
                     id="next-review-date"
                     type="datetime-local"
-                    value={format(nextReviewDate, "yyyy-MM-dd'T'HH:mm")}
-                    onChange={(e) => setNextReviewDate(new Date(e.target.value))}
+                    value={formatInLocalTimezone(nextReviewDate, "YYYY-MM-DDTHH:mm")}
+                    onChange={(e) => {
+                      // 直接使用输入的本地时间，在提交时再转换为 UTC
+                      const localDate = new Date(e.target.value);
+                      setNextReviewDate(localDate);
+                    }}
                     className="mt-2 block w-full rounded-md border-gray-600 bg-gray-800/50 text-gray-200 focus:border-cyan-400 focus:ring-cyan-400 dark:[color-scheme:dark]"
                   />
                 </div>

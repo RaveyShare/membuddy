@@ -20,8 +20,15 @@ import SensoryAssociation from "@/components/sensory-association"
 import MemoryAidsViewer from "@/components/MemoryAidsViewer"
 import ShareDialog from "@/components/share-dialog"
 import LoadingSpinner from "@/components/loading-spinner"
-import { format } from "date-fns"
+import { formatInLocalTimezone } from "@/lib/date"
 import type { MemoryItem, MemoryAids, Mnemonic, SensoryAssociation as SensoryAssociationType } from "@/lib/types"
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+// 扩展 dayjs 插件
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 export default function Home() {
   const [inputValue, setInputValue] = useState("")
@@ -73,6 +80,7 @@ export default function Home() {
         title: "加载失败",
         description: error instanceof Error ? error.message : "无法加载记忆项目，请稍后再试",
         variant: "destructive",
+        open: true
       })
     } finally {
       setLoadingMemoryItems(false)
@@ -92,7 +100,7 @@ export default function Home() {
 
     try {
       // 步骤 1: 保存初始项目。这个操作很快，我们等待它完成。
-      savedItem = await api.saveMemoryItem({ content: contentToSave })
+      savedItem = await api.saveMemoryItem({ content: contentToSave, memory_aids: { mindMap: { id: "", label: "", children: [] }, mnemonics: [], sensoryAssociations: [] } })
 
       // 步骤 2: 使用新项目乐观地更新UI。
       setMemoryItems((prev) => [savedItem, ...prev.slice(0, 4)])
@@ -100,6 +108,7 @@ export default function Home() {
       toast({
         title: "保存成功",
         description: "已添加到提醒事项。AI 正在后台生成辅助工具...",
+        open: true
       })
     } catch (error) {
       console.error("Error saving initial memory item:", error)
@@ -109,6 +118,7 @@ export default function Home() {
         title: "保存失败",
         description: error instanceof Error ? error.message : "无法保存您的项目，请稍后再试。",
         variant: "destructive",
+        open: true
       })
       return // 如果初始保存失败，则停止执行
     }
@@ -131,14 +141,16 @@ export default function Home() {
 
         toast({
           title: "AI 辅助已生成",
-          description: `“${savedItem.content.substring(0, 20)}...”的记忆辅助工具已就绪。`,
+          description: `"${savedItem.content.substring(0, 20)}..."的记忆辅助工具已就绪。`,
+          open: true
         })
       } catch (error) {
         console.error("Error generating memory aids in background:", error)
         toast({
           title: "AI 辅助生成失败",
-          description: `无法为“${savedItem.content.substring(0, 20)}...”生成辅助工具。`,
+          description: `无法为"${savedItem.content.substring(0, 20)}..."生成辅助工具。`,
           variant: "destructive",
+          open: true
         })
         // 可选：更新列表中的项目以显示错误状态
         // setMemoryItems(prev => prev.map(item => item.id === savedItem.id ? { ...item, error: "AI generation failed" } : item))
@@ -182,14 +194,19 @@ export default function Home() {
       return "无计划";
     }
 
-    const now = new Date().getTime();
-    const reviewTime = new Date(reviewDate).getTime();
-    const diffMillis = reviewTime - now;
+    // 使用 dayjs 处理 UTC 日期时间
+    const userTimezone = dayjs.tz.guess();
+    const now = dayjs();
+    const reviewTime = dayjs.utc(reviewDate).tz(userTimezone);
+    
+    // 计算时间差（毫秒）
+    const diffMillis = reviewTime.diff(now);
 
     if (diffMillis <= 0) {
       return "已到期";
     }
 
+    // 计算时间差（秒、分钟、小时、天）
     const diffSeconds = Math.floor(diffMillis / 1000);
     const diffMinutes = Math.floor(diffSeconds / 60);
     const diffHours = Math.floor(diffMinutes / 60);
@@ -449,7 +466,7 @@ export default function Home() {
                               <div className="mt-2 flex items-center justify-between text-white/70 text-xs">
                                 <div className="flex items-center text-cyan-400">
                                   <Calendar className="mr-1.5 h-3 w-3" />
-                                  <span>{item.next_review_date ? format(new Date(item.next_review_date), "yyyy-MM-dd HH:mm") : "无计划"}</span>
+                                  <span>{item.next_review_date ? formatInLocalTimezone(item.next_review_date, "YYYY-MM-DD HH:mm") : "无计划"}</span>
                                 </div>
                                 <p className="text-white/50">{getRelativeTimeText(item.next_review_date)}</p>
                               </div>

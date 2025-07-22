@@ -1,4 +1,11 @@
 // A simple client-side notification manager
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+// 扩展 dayjs 插件
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Store timeout IDs to be able to clear them later
 const scheduledNotificationIds: NodeJS.Timeout[] = [];
@@ -22,9 +29,13 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
  * @param {string} reviewDate The ISO string of the review date.
  */
 const scheduleNotification = (title: string, reviewDate: string) => {
-  const now = new Date().getTime();
-  const reviewTime = new Date(reviewDate).getTime();
-  const delay = reviewTime - now;
+  // 使用 dayjs 处理 UTC 日期时间
+  const userTimezone = dayjs.tz.guess();
+  const now = dayjs();
+  const reviewTime = dayjs.utc(reviewDate).tz(userTimezone);
+  
+  // 计算时间差（毫秒）
+  const delay = reviewTime.diff(now);
 
   // Only schedule for future dates and if permission is granted
   if (delay > 0 && Notification.permission === 'granted') {
