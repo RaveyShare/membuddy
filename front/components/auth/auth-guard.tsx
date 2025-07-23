@@ -14,12 +14,19 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children, requireAuth = false, publicOnly = false }: AuthGuardProps) {
   const [isLoading, setIsLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   useEffect(() => {
     const checkAuthStatus = () => {
+      // 快速检查：如果已经检查过且不需要重新验证，直接返回
+      if (authChecked && !requireAuth && !publicOnly) {
+        setIsLoading(false)
+        return
+      }
+
       const isAuthenticated = authManager.isAuthenticated()
       console.log(`AuthGuard Check: Path=${pathname}, requireAuth=${requireAuth}, publicOnly=${publicOnly}, isAuthenticated=${isAuthenticated}`)
 
@@ -40,21 +47,26 @@ export default function AuthGuard({ children, requireAuth = false, publicOnly = 
       }
 
       // If neither of the above cases, the user is authorized to see the page
+      setAuthChecked(true)
       setIsLoading(false)
     }
 
-    // Initial check
-    checkAuthStatus()
+    // 使用 setTimeout 来避免阻塞渲染
+    const timeoutId = setTimeout(checkAuthStatus, 0)
 
     // Subscribe to auth changes
-    const unsubscribe = authManager.addListener(checkAuthStatus)
+    const unsubscribe = authManager.addListener(() => {
+      setAuthChecked(false)
+      checkAuthStatus()
+    })
 
     // Cleanup subscription on component unmount
     return () => {
+      clearTimeout(timeoutId)
       console.log("AuthGuard cleanup: unsubscribing from auth changes.")
       unsubscribe()
     }
-  }, [requireAuth, publicOnly, router, pathname, searchParams])
+  }, [requireAuth, publicOnly, router, pathname, searchParams, authChecked])
 
   if (isLoading) {
     return (

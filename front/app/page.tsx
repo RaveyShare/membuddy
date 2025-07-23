@@ -305,10 +305,11 @@ export default function Home() {
             transition={{ duration: 1 }}
             className="mx-auto max-w-3xl space-y-8"
           >
-            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
-              欢迎使用小杏仁记忆搭子
+            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl flex items-center justify-center gap-3">
+              <Brain className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 lg:h-14 lg:w-14 text-cyan-400" />
+              小杏仁记忆
             </h1>
-            <p className="mx-auto max-w-2xl text-white/80 sm:text-xl">输入内容，AI生成记忆工具，智能提醒复习</p>
+            <p className="mx-auto max-w-2xl text-white/80 sm:text-xl">你只管学习，小杏仁帮你记忆</p>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}

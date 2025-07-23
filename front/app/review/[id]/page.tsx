@@ -97,9 +97,14 @@ export default function ReviewPage() {
   
   useEffect(() => {
     if (!itemId) return
+    
+    let retryCount = 0
+    const maxRetries = 2
+    
     const fetchData = async () => {
       try {
         setIsLoading(true)
+        
         const [fetchedItem, schedules] = await Promise.all([
           api.getMemoryItem(itemId),
           api.getReviewSchedules(itemId)
@@ -131,14 +136,43 @@ export default function ReviewPage() {
         if (upcomingSchedules.length > 0) {
           setCurrentSchedule(upcomingSchedules[0]);
         }
+        
       } catch (error) {
         console.error("Failed to fetch review data:", error)
-        toast({ title: "加载失败", variant: "destructive", open: true })
-        router.push("/memory-library")
+        const errorMessage = error instanceof Error ? error.message : "未知错误"
+        
+        if (retryCount < maxRetries && errorMessage.includes('超时')) {
+          retryCount++
+          toast({
+            title: `加载失败，正在重试 (${retryCount}/${maxRetries})`,
+            description: "网络连接超时，正在自动重试...",
+            variant: "destructive",
+            open: true
+          })
+          
+          // 延迟后重试
+          setTimeout(() => {
+            fetchData()
+          }, 1000 * retryCount)
+          return
+        }
+        
+        toast({ 
+          title: "加载失败", 
+          description: errorMessage.includes('超时') ? '网络连接超时，请检查网络后重试' : '无法加载复习内容，请稍后重试',
+          variant: "destructive", 
+          open: true 
+        })
+        
+        // 延迟跳转，让用户看到错误信息
+        setTimeout(() => {
+          router.push("/memory-library")
+        }, 2000)
       } finally {
         setIsLoading(false)
       }
     }
+    
     fetchData()
   }, [itemId, router, toast])
 
@@ -262,7 +296,7 @@ export default function ReviewPage() {
                       {value: "easy", label: "简单", color: "green"},
                       {value: "medium", label: "中等", color: "yellow"},
                       {value: "hard", label: "困难", color: "red"}
-                    ].map(({value, label, color}: {value: string, label: string, color: 'green' | 'yellow' | 'red'}) => {
+                    ].map(({value, label, color}) => {
                       const isSelected = difficulty === value;
                       const colorClasses = {
                         green: 'border-green-500 bg-green-500/20 text-green-300',

@@ -19,11 +19,17 @@ export default function LoginForm() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // 防止重复提交
+    if (isLoading || submitAttempted) {
+      return
+    }
 
     if (!email || !password) {
       toast({
@@ -34,26 +40,52 @@ export default function LoginForm() {
       return
     }
 
+    // 简单的邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "邮箱格式错误",
+        description: "请输入有效的邮箱地址",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setIsLoading(true)
+      setSubmitAttempted(true)
+
+      // 显示登录进度
+      toast({
+        title: "正在登录...",
+        description: "请稍候，正在验证您的身份",
+      })
 
       await api.auth.login({ email, password })
 
       toast({
         title: "登录成功",
-        description: "欢迎回来！",
+        description: "欢迎回来！正在跳转...",
       })
 
-      // Redirect to home page or intended destination
-      const redirectTo = new URLSearchParams(window.location.search).get("redirect") || "/"
-      router.push(redirectTo)
+      // 短暂延迟后跳转，让用户看到成功消息
+      setTimeout(() => {
+        const redirectTo = new URLSearchParams(window.location.search).get("redirect") || "/"
+        router.push(redirectTo)
+      }, 500)
+
     } catch (error) {
       console.error("Login error:", error)
+      const errorMessage = error instanceof Error ? error.message : "请检查您的邮箱和密码"
+      
       toast({
         title: "登录失败",
-        description: error instanceof Error ? error.message : "请检查您的邮箱和密码",
+        description: errorMessage.includes('超时') ? '网络连接超时，请检查网络后重试' : errorMessage,
         variant: "destructive",
       })
+      
+      // 重置提交状态，允许重新尝试
+      setSubmitAttempted(false)
     } finally {
       setIsLoading(false)
     }
