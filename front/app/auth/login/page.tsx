@@ -3,6 +3,9 @@ import Link from "next/link"
 import LoginForm from "@/components/auth/login-form"
 import AuthGuard from "@/components/auth/auth-guard"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function LoginPage() {
   return (
     <AuthGuard publicOnly={true}>

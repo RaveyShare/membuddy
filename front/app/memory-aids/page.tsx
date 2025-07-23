@@ -137,10 +137,17 @@ export default function MemoryAidsPage() {
   const [generatedMindMap, setGeneratedMindMap] = useState(defaultMindMapData)
   const [generatedMnemonics, setGeneratedMnemonics] = useState(defaultMnemonics)
   const [sensoryAssociations, setSensoryAssociations] = useState(defaultSensoryAssociations)
+  const [isClient, setIsClient] = useState(false)
   const mindMapRef = useRef<MindMapHandle>(null)
   const { toast } = useToast()
 
   useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isClient) return
+    
     // Get content from localStorage (set in the home page)
     const savedContent =
       localStorage.getItem("memoryContent") ||
@@ -169,7 +176,7 @@ export default function MemoryAidsPage() {
       // If no saved data, generate it now
       generateNewData(savedContent)
     }
-  }, [toast])
+  }, [isClient, toast])
 
   const generateNewData = async (content: string) => {
     try {
@@ -177,9 +184,9 @@ export default function MemoryAidsPage() {
       const response = await api.generateMemoryAids(content)
 
       // Update state with API response
-      if (response.mindMap) setGeneratedMindMap(response.mindMap)
+      if (response.mindMap) setGeneratedMindMap(response.mindMap as any)
       if (response.mnemonics) setGeneratedMnemonics(response.mnemonics)
-      if (response.sensoryAssociations) setSensoryAssociations(response.sensoryAssociations)
+      if (response.sensoryAssociations) setSensoryAssociations(response.sensoryAssociations as any)
 
       // Save to localStorage for future use
       localStorage.setItem("memoryAidsData", JSON.stringify(response))
@@ -187,6 +194,7 @@ export default function MemoryAidsPage() {
       toast({
         title: "生成成功",
         description: "AI 记忆辅助工具已生成完成",
+        open: true,
       })
     } catch (error) {
       console.error("Failed to generate memory aids:", error)
@@ -194,6 +202,7 @@ export default function MemoryAidsPage() {
         title: "生成失败",
         description: error instanceof Error ? error.message : "使用默认数据展示",
         variant: "destructive",
+        open: true,
       })
 
       // Use default data on error
@@ -233,6 +242,7 @@ export default function MemoryAidsPage() {
       toast({
         title: "保存成功",
         description: "记忆项目已保存到记忆库",
+        open: true,
       })
     } catch (error) {
       console.error("Failed to save to library:", error)
@@ -240,6 +250,7 @@ export default function MemoryAidsPage() {
         title: "保存失败",
         description: "无法保存到记忆库，请稍后再试",
         variant: "destructive",
+        open: true,
       })
     }
   }
@@ -255,9 +266,9 @@ export default function MemoryAidsPage() {
       const response = await api.generateMemoryAids(content)
 
       // Update state with API response
-      if (response.mindMap) setGeneratedMindMap(response.mindMap)
+      if (response.mindMap) setGeneratedMindMap(response.mindMap as any)
       if (response.mnemonics) setGeneratedMnemonics(response.mnemonics)
-      if (response.sensoryAssociations) setSensoryAssociations(response.sensoryAssociations)
+      if (response.sensoryAssociations) setSensoryAssociations(response.sensoryAssociations as any)
 
       // Save to localStorage for future use
       localStorage.setItem("memoryAidsData", JSON.stringify(response))
@@ -265,6 +276,7 @@ export default function MemoryAidsPage() {
       toast({
         title: "重新生成成功",
         description: "记忆辅助工具已更新",
+        open: true,
       })
     } catch (error) {
       console.error("Failed to regenerate memory aids:", error)
@@ -272,10 +284,22 @@ export default function MemoryAidsPage() {
         title: "重新生成失败",
         description: "无法重新生成记忆辅助工具，请稍后再试",
         variant: "destructive",
+        open: true,
       })
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (!isClient) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black">
+        <div className="text-center">
+          <Brain className="mx-auto h-12 w-12 animate-pulse text-cyan-400" />
+          <p className="mt-4 text-gray-400">加载记忆辅助工具...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

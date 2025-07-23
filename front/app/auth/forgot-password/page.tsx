@@ -3,6 +3,9 @@ import Link from "next/link"
 import ForgotPasswordForm from "@/components/auth/forgot-password-form"
 import AuthGuard from "@/components/auth/auth-guard"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function ForgotPasswordPage() {
   return (
     <AuthGuard publicOnly={true}>

@@ -15,11 +15,18 @@ interface AuthGuardProps {
 export default function AuthGuard({ children, requireAuth = false, publicOnly = false }: AuthGuardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [authChecked, setAuthChecked] = useState(false)
+  const [isClient, setIsClient] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isClient) return
+    
     const checkAuthStatus = () => {
       // 快速检查：如果已经检查过且不需要重新验证，直接返回
       if (authChecked && !requireAuth && !publicOnly) {
@@ -66,9 +73,9 @@ export default function AuthGuard({ children, requireAuth = false, publicOnly = 
       console.log("AuthGuard cleanup: unsubscribing from auth changes.")
       unsubscribe()
     }
-  }, [requireAuth, publicOnly, router, pathname, searchParams, authChecked])
+  }, [isClient, requireAuth, publicOnly, router, pathname, searchParams, authChecked])
 
-  if (isLoading) {
+  if (!isClient || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-black">
         <div className="flex flex-col items-center">
