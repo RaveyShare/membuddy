@@ -18,6 +18,7 @@ import {
   Target,
   Loader2,
   Calendar,
+  Bell,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -67,15 +68,28 @@ export default function MemoryLibraryPage() {
     };
   }, [toast])
 
+  // 检查通知权限并调度通知（仅在权限已授予时）
   useEffect(() => {
-    if (memoryItems.length > 0) {
-      requestNotificationPermission().then(permission => {
-        if (permission === 'granted') {
-          scheduleReviewNotifications(memoryItems);
-        }
-      });
+    if (memoryItems.length > 0 && Notification.permission === 'granted') {
+      scheduleReviewNotifications(memoryItems);
     }
   }, [memoryItems]);
+
+  // 手动请求通知权限的函数
+  const handleRequestNotificationPermission = async () => {
+    try {
+      const permission = await requestNotificationPermission();
+      if (permission === 'granted' && memoryItems.length > 0) {
+        scheduleReviewNotifications(memoryItems);
+        toast({ title: "通知权限已开启", description: "您将收到复习提醒通知", open: true });
+      } else if (permission === 'denied') {
+        toast({ title: "通知权限被拒绝", description: "您可以在浏览器设置中手动开启", variant: "destructive", open: true });
+      }
+    } catch (error) {
+      console.error('请求通知权限失败:', error);
+      toast({ title: "请求通知权限失败", variant: "destructive", open: true });
+    }
+  };
 
   const handleViewDetails = (item: MemoryItem) => router.push(`/memory-item/${item.id}`)
   const handleStartReview = (item: MemoryItem) => router.push(`/review/${item.id}`)
@@ -208,6 +222,18 @@ export default function MemoryLibraryPage() {
               <Input placeholder="搜索记忆项目..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="border-white/10 bg-white/5 pl-10 text-white" />
             </div>
             <div className="flex gap-2">
+              {/* 通知权限按钮 */}
+              {Notification.permission !== 'granted' && (
+                <Button
+                  onClick={handleRequestNotificationPermission}
+                  variant="outline"
+                  size="sm"
+                  className="border-yellow-400 text-yellow-400 hover:bg-yellow-400/10"
+                >
+                  <Bell className="mr-2 h-4 w-4" />
+                  开启通知
+                </Button>
+              )}
               <Select value={filterCategory} onValueChange={setFilterCategory}><SelectTrigger className="w-32 border-white/10 bg-white/5 text-white"><Filter className="mr-2 h-4 w-4" /><SelectValue /></SelectTrigger><SelectContent className="border-white/10 bg-black text-white">{["all", "历史", "化学", "语言", "数学", "地理"].map(c => <SelectItem key={c} value={c}>{c === 'all' ? '全部' : c}</SelectItem>)}</SelectContent></Select>
               <Select value={sortBy} onValueChange={setSortBy}><SelectTrigger className="w-32 border-white/10 bg-white/5 text-white"><SelectValue /></SelectTrigger><SelectContent className="border-white/10 bg-black text-white"><SelectItem value="recent">下次复习</SelectItem><SelectItem value="mastery">掌握度</SelectItem><SelectItem value="reviews">复习次数</SelectItem><SelectItem value="alphabetical">字母顺序</SelectItem></SelectContent></Select>
             </div>
