@@ -74,3 +74,20 @@ export interface MemoryItemCreate {
   content: string;
   memory_aids: MemoryAids;
 }
+
+export interface ReviewSchedule {
+  id: string;
+  memory_item_id: string;
+  user_id: UUID;
+  review_date: string;
+  interval_days: number;
+  repetition: number;
+  easiness_factor: number;
+  completed: boolean;
+  created_at: string;
+}
+
+export interface ReviewCompletionRequest {
+  quality: number; // 0-5 rating
+  notes?: string;
+}
