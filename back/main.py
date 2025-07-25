@@ -31,6 +31,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Health Check ---
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
 # --- Dependencies ---
 async def get_current_user(authorization: str = Header(...)):
     if not authorization or not authorization.startswith("Bearer "):
