@@ -63,7 +63,6 @@ export class AuthManager {
       if (userData) {
         this.user = JSON.parse(userData)
       }
-      console.log("Loaded auth from storage:", { hasToken: !!this.token, hasUser: !!this.user }) // Debug log
     } catch (error) {
       console.error("Error loading auth from storage:", error)
       this.clearAuth()
@@ -88,12 +87,6 @@ export class AuthManager {
   // Check if user is authenticated
   isAuthenticated(): boolean {
     const authenticated = !!(this.token && this.user && !this.isTokenExpired())
-    console.log("isAuthenticated check:", {
-      hasToken: !!this.token,
-      hasUser: !!this.user,
-      isExpired: this.isTokenExpired(),
-      result: authenticated,
-    }) // Debug log
     return authenticated
   }
 
@@ -109,7 +102,6 @@ export class AuthManager {
 
   // Set authentication data
   setAuth(authData: AuthResponse): void {
-    console.log("Setting auth data:", authData) // Debug log
     this.user = authData.user
     this.token = authData.token
     this.refreshToken = authData.refreshToken
@@ -125,7 +117,6 @@ export class AuthManager {
 
   // Clear authentication data
   clearAuth(): void {
-    console.log("Clearing auth data") // Debug log
     this.user = null
     this.token = null
     this.refreshToken = null
@@ -147,7 +138,6 @@ export class AuthManager {
       const decoded: { exp: number } = jwtDecode(this.token);
       const currentTime = Date.now() / 1000
       const isExpired = decoded.exp < currentTime
-      console.log("Token expiry check:", { exp: decoded.exp, current: currentTime, isExpired }) // Debug log
       return isExpired
     } catch (error) {
       console.warn("Unable to decode JWT payload, treating as expired:", error)

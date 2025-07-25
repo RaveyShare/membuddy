@@ -159,9 +159,7 @@ export default function Home() {
   }
 
   const handleMemoryItemClick = (item: MemoryItem) => {
-    localStorage.setItem("memoryContent", item.content)
-    localStorage.setItem("memoryAidsData", JSON.stringify(item.memory_aids))
-    router.push("/memory-aids")
+    router.push(`/memory-item/${item.id}`)
   }
 
   const handleLogout = async () => {
@@ -184,9 +182,8 @@ export default function Home() {
   }
 
   const handleViewMemoryAids = () => {
-    localStorage.setItem("memoryContent", generatedContent)
-    localStorage.setItem("memoryAidsData", JSON.stringify(generatedAids))
-    router.push("/memory-aids")
+    // 创建一个临时的记忆项目并跳转到记忆库
+    router.push("/memory-library")
   }
 
   const getRelativeTimeText = (reviewDate?: string | null): string => {

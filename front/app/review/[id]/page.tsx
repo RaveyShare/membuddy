@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/use-toast"
 import AuthGuard from "@/components/auth/auth-guard"
 import { formatInLocalTimezone } from "@/lib/date"
 import MemoryAidsViewer from "@/components/MemoryAidsViewer"
+import ShareDialog from "@/components/share-dialog"
 import type { MemoryItem, MemoryAids } from "@/lib/types"
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
@@ -94,6 +95,9 @@ export default function ReviewPage() {
   const [category, setCategory] = useState("")
   const [tags, setTags] = useState<string[]>([])
   const [currentTag, setCurrentTag] = useState("")
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [shareType, setShareType] = useState<string | null>(null)
+  const [shareContent, setShareContent] = useState<any>(null)
   
   useEffect(() => {
     if (!itemId) return
@@ -193,14 +197,28 @@ export default function ReviewPage() {
     setTags(tags.filter(tag => tag !== tagToRemove))
   }
 
+  const handleShare = (type: string, content: any) => {
+    setShareType(type)
+    setShareContent({
+      ...content,
+      memoryItemId: itemId
+    })
+    setShareDialogOpen(true)
+  }
+
   const handleCompleteReview = async () => {
-    if (!item || !currentSchedule || !editableItem) {
+    if (!item || !editableItem) {
         toast({ title: "错误", description: "数据不完整，无法保存。", variant: "destructive", open: true });
         return;
     }
     setIsSubmitting(true)
     try {
-      await api.completeReview(currentSchedule.id, { mastery, difficulty })
+      // 如果有当前复习计划，完成它
+       if (currentSchedule) {
+         // 将掌握度转换为质量评分 (0-5)
+         const quality = Math.round(mastery / 20); // 0-100% -> 0-5
+         await api.completeReview(currentSchedule.id, { quality })
+       }
       
       // 将本地时间直接转换为 ISO 字符串（这已经是 UTC 时间）
       // 注意：不需要使用 Date.UTC 进行额外转换，因为 toISOString() 已经是 UTC 格式
@@ -214,6 +232,9 @@ export default function ReviewPage() {
         memory_aids: editableItem.memory_aids
       })
 
+      // 清除当前复习计划状态，表示复习已完成
+      setCurrentSchedule(null)
+      
       toast({ title: "复习完成！", description: `"${item.title}"已更新。`, open: true })
       router.push("/memory-library")
     } catch (error) {
@@ -270,7 +291,7 @@ export default function ReviewPage() {
                 <CardContent>
                   <MemoryAidsViewer 
                     aids={editableItem.memory_aids} 
-                    onShare={() => {}}
+                    onShare={handleShare}
                   />
                 </CardContent>
               </Card>
@@ -298,7 +319,7 @@ export default function ReviewPage() {
                       {value: "hard", label: "困难", color: "red"}
                     ].map(({value, label, color}) => {
                       const isSelected = difficulty === value;
-                      const colorClasses = {
+                      const colorClasses: Record<string, string> = {
                         green: 'border-green-500 bg-green-500/20 text-green-300',
                         yellow: 'border-yellow-500 bg-yellow-500/20 text-yellow-300',
                         red: 'border-red-500 bg-red-500/20 text-red-300',
@@ -365,7 +386,7 @@ export default function ReviewPage() {
                 </div>
                 <Button
                   onClick={handleCompleteReview}
-                  disabled={isSubmitting || !currentSchedule}
+                  disabled={isSubmitting}
                   className="w-full bg-gradient-to-r from-violet-500 to-cyan-500 text-black font-bold"
                 >
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -375,6 +396,13 @@ export default function ReviewPage() {
             </Card>
           </div>
         </main>
+        
+        <ShareDialog 
+          open={shareDialogOpen} 
+          onOpenChange={setShareDialogOpen} 
+          type={shareType} 
+          content={shareContent} 
+        />
       </div>
     </AuthGuard>
   )

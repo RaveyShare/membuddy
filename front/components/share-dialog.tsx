@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -41,20 +41,77 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
     }
   }
 
-  const getShareUrl = () => {
-    // In a real app, this would generate a unique URL for sharing
-    const baseUrl = window.location.origin
-    const contentId = content.id || "demo"
-    return `${baseUrl}/share/${type}/${contentId}`
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false)
+
+  const generateShareUrl = async () => {
+    if (shareUrl || isGeneratingShare) return shareUrl
+    
+    setIsGeneratingShare(true)
+    try {
+      // Get the memory item ID from content or URL
+      const memoryItemId = content.memoryItemId || new URLSearchParams(window.location.search).get('id')
+      
+      if (!memoryItemId) {
+        throw new Error('Memory item ID not found')
+      }
+
+      const token = localStorage.getItem('token')
+      if (!token) {
+        throw new Error('Authentication required')
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/share`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          memory_item_id: memoryItemId,
+          share_type: type,
+          content_id: content.id || null
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create share link')
+      }
+
+      const data = await response.json()
+      setShareUrl(data.share_url)
+      return data.share_url
+    } catch (error) {
+      console.error('Error generating share URL:', error)
+      toast({
+        title: "生成分享链接失败",
+        description: "请稍后重试",
+        variant: "destructive",
+        open: true,
+      })
+      // Fallback to demo URL
+      const fallbackUrl = `${window.location.origin}/share/${type}/demo`
+      setShareUrl(fallbackUrl)
+      return fallbackUrl
+    } finally {
+      setIsGeneratingShare(false)
+    }
   }
 
-  const shareUrl = getShareUrl()
+  // Generate share URL when dialog opens
+  useEffect(() => {
+    if (open && !shareUrl) {
+      generateShareUrl()
+    }
+  }, [open])
 
   const handleCopyLink = () => {
+    if (!shareUrl) return
     navigator.clipboard.writeText(shareUrl)
     toast({
       title: "链接已复制",
       description: "分享链接已复制到剪贴板",
+      open: true,
     })
   }
 
@@ -63,6 +120,7 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
     toast({
       title: "邮件已发送",
       description: `分享链接已发送至 ${email}`,
+      open: true,
     })
     setEmail("")
   }
@@ -72,6 +130,7 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
     toast({
       title: "消息已发送",
       description: "分享链接已通过消息发送",
+      open: true,
     })
     setMessage("")
   }
@@ -170,7 +229,7 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
 
           <TabsContent value="link" className="mt-4">
             <div className="flex items-center space-x-2">
-              <Input value={shareUrl} readOnly className="border-white/10 bg-white/5 text-white" />
+              <Input value={shareUrl || ''} readOnly className="border-white/10 bg-white/5 text-white" />
               <Button
                 variant="outline"
                 size="icon"
@@ -185,7 +244,7 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
           <TabsContent value="qrcode" className="mt-4">
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="rounded-lg bg-white p-4">
-                <QRCodeSVG value={shareUrl} size={200} />
+                <QRCodeSVG value={shareUrl || ''} size={200} />
               </div>
               <p className="text-sm text-white/70">扫描二维码分享内容</p>
             </div>

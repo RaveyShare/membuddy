@@ -128,3 +128,22 @@ class ReviewCompletionRequest(BaseModel):
 class ForgotPasswordPayload(BaseModel):
     email: EmailStr
 
+# --- Share Schemas ---
+class ShareCreate(BaseModel):
+    memory_item_id: uuid.UUID
+    share_type: str  # 'mindmap', 'mnemonic', 'sensory'
+    content_id: Optional[str] = None  # For specific mnemonic or sensory association
+    expires_at: Optional[datetime] = None
+
+class ShareData(BaseModel):
+    id: str
+    title: str
+    content: dict
+    share_type: str
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+
+class ShareResponse(BaseModel):
+    share_id: str
+    share_url: str
+

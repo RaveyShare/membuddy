@@ -3,7 +3,18 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Brain, BarChart, Tag, Loader2, BookOpen, Eye } from "lucide-react"
+import {
+  ArrowLeft,
+  Brain,
+  BookOpen,
+  Eye,
+  BarChart,
+  Tag,
+  Loader2,
+  RefreshCw,
+  Play,
+  Share2,
+} from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +24,7 @@ import { useToast } from "@/components/ui/use-toast"
 import AuthGuard from "@/components/auth/auth-guard"
 import { formatInLocalTimezone } from "@/lib/date"
 import MemoryAidsViewer from "@/components/MemoryAidsViewer"
+import ShareDialog from "@/components/share-dialog"
 import type { MemoryItem } from "@/lib/types"
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
@@ -23,7 +35,7 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 
-const MemoryStatusCard = ({ item }: { item: MemoryItem }) => {
+const MemoryStatusCard = ({ item, onStartReview }: { item: MemoryItem, onStartReview: () => void }) => {
   const getRelativeTimeText = (reviewDate?: string | null): string => {
     if (!reviewDate) return "无计划"
     
@@ -100,6 +112,15 @@ const MemoryStatusCard = ({ item }: { item: MemoryItem }) => {
           <span className="text-gray-400"><Tag className="inline h-4 w-4 mr-1"/>标签</span>
           {item.tags.map(tag => <Badge key={tag} variant="outline" className="border-cyan-400/50 text-cyan-400">{tag}</Badge>)}
         </div>
+        <div className="pt-4">
+          <Button 
+            className="w-full bg-gradient-to-r from-cyan-400 to-violet-500 text-black hover:from-cyan-500 hover:to-violet-600"
+            onClick={onStartReview}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            开始复习
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )
@@ -111,6 +132,10 @@ export default function MemoryItemDetailsPage() {
   const { toast } = useToast()
   const [item, setItem] = useState<MemoryItem | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [shareType, setShareType] = useState<string | null>(null)
+  const [shareContent, setShareContent] = useState<any>(null)
   const itemId = params.id as string
 
   useEffect(() => {
@@ -130,6 +155,56 @@ export default function MemoryItemDetailsPage() {
     }
     fetchItem()
   }, [itemId, router, toast])
+
+  const handleStartReview = () => {
+    router.push(`/review/${itemId}`)
+  }
+
+  const handleRegenerateMemoryAids = async () => {
+    if (!item) return
+    
+    try {
+      setIsRegenerating(true)
+      const response = await api.generateMemoryAids(item.content)
+      
+      // 更新记忆项目的记忆辅助工具
+      const updatedItem = {
+        ...item,
+        memory_aids: response
+      }
+      
+      // 调用API更新记忆项目
+      await api.updateMemoryItem(itemId, updatedItem)
+      
+      // 更新本地状态
+      setItem(updatedItem)
+      
+      toast({
+        title: "重新生成成功",
+        description: "记忆辅助工具已更新",
+        open: true,
+      })
+    } catch (error) {
+      console.error("Failed to regenerate memory aids:", error)
+      toast({
+        title: "重新生成失败",
+        description: "无法重新生成记忆辅助工具，请稍后再试",
+        variant: "destructive",
+        open: true,
+      })
+    } finally {
+      setIsRegenerating(false)
+    }
+  }
+
+  const handleShare = (type: string, content: any) => {
+    setShareType(type)
+    setShareContent({
+      ...content,
+      memoryItemId: itemId
+    })
+    setShareDialogOpen(true)
+  }
 
   if (isLoading) {
     return (
@@ -186,23 +261,42 @@ export default function MemoryItemDetailsPage() {
                 {item.memory_aids && (
                   <Card className="border border-white/10 bg-white/5">
                     <CardHeader>
-                      <CardTitle className="flex items-center text-cyan-400">
-                        <Eye className="mr-2 h-5 w-5" />
-                        AI 记忆辅助
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center text-cyan-400">
+                          <Eye className="mr-2 h-5 w-5" />
+                          AI 记忆辅助
+                        </CardTitle>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-cyan-400 text-cyan-400 hover:bg-cyan-400/10 bg-transparent"
+                          onClick={handleRegenerateMemoryAids}
+                          disabled={isRegenerating}
+                        >
+                          <RefreshCw className={`mr-2 h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+                          {isRegenerating ? '生成中...' : '重新生成'}
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <MemoryAidsViewer aids={item.memory_aids} onShare={() => {}} />
+                      <MemoryAidsViewer aids={item.memory_aids} onShare={handleShare} />
                     </CardContent>
                   </Card>
                 )}
               </div>
               <div className="lg:col-span-1 space-y-8">
-                <MemoryStatusCard item={item} />
+                <MemoryStatusCard item={item} onStartReview={handleStartReview} />
               </div>
             </div>
           </motion.div>
         </main>
+        
+        <ShareDialog 
+          open={shareDialogOpen} 
+          onOpenChange={setShareDialogOpen} 
+          type={shareType} 
+          content={shareContent} 
+        />
       </div>
     </AuthGuard>
   )

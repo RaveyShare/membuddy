@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     # Gemini
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "your-gemini-api-key-here")
+    
+    # Frontend
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://membuddy.ravey.site")
 
     # CORS
     BACKEND_CORS_ORIGINS: list = [

@@ -35,11 +35,9 @@ export default function AuthGuard({ children, requireAuth = false, publicOnly = 
       }
 
       const isAuthenticated = authManager.isAuthenticated()
-      console.log(`AuthGuard Check: Path=${pathname}, requireAuth=${requireAuth}, publicOnly=${publicOnly}, isAuthenticated=${isAuthenticated}`)
 
       // Case 1: Page requires authentication, but user is not logged in
       if (requireAuth && !isAuthenticated) {
-        console.log("Redirecting to login, user not authenticated.")
         const redirectUrl = `/auth/login?redirect=${encodeURIComponent(pathname + searchParams.toString())}`
         router.replace(redirectUrl)
         return
@@ -48,7 +46,6 @@ export default function AuthGuard({ children, requireAuth = false, publicOnly = 
       // Case 2: Page is for public only (e.g., login), but user is already logged in
       if (publicOnly && isAuthenticated) {
         const redirect = searchParams.get("redirect") || "/"
-        console.log(`Redirecting to ${redirect}, user already authenticated.`)
         router.replace(redirect)
         return
       }
@@ -70,7 +67,6 @@ export default function AuthGuard({ children, requireAuth = false, publicOnly = 
     // Cleanup subscription on component unmount
     return () => {
       clearTimeout(timeoutId)
-      console.log("AuthGuard cleanup: unsubscribing from auth changes.")
       unsubscribe()
     }
   }, [isClient, requireAuth, publicOnly, router, pathname, searchParams, authChecked])
