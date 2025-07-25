@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: list = [
         "http://localhost:3000",  # React frontend
         "http://localhost:8000",  # FastAPI backend
-        "https://front-4jsgo8xpz-raveys-projects.vercel.app",  # Current Vercel frontend
+        "https://membuddy.ravey.site",  # Custom domain
+        "https://front-75934ladd-raveys-projects.vercel.app",  # Latest Vercel frontend
+        "https://front-4jsgo8xpz-raveys-projects.vercel.app",  # Previous Vercel frontend
         "https://front-d19hf1aa7-raveys-projects.vercel.app",  # Previous Vercel frontend
         "https://*.vercel.app",  # All Vercel apps (wildcard)
         "https://*.onrender.com",  # Render apps
