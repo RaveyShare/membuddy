@@ -52,12 +52,27 @@ CREATE TABLE memory_aids (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Shares table
+CREATE TABLE shares (
+    id VARCHAR(255) PRIMARY KEY,
+    memory_item_id UUID NOT NULL REFERENCES memory_items(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    share_type VARCHAR(50) NOT NULL,
+    content_id VARCHAR(255),
+    share_content JSONB NOT NULL,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_memory_items_user_id ON memory_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_review_schedules_user_id ON review_schedules(user_id);
 CREATE INDEX IF NOT EXISTS idx_review_schedules_memory_item_id ON review_schedules(memory_item_id);
 CREATE INDEX IF NOT EXISTS idx_memory_aids_user_id ON memory_aids(user_id);
 CREATE INDEX IF NOT EXISTS idx_memory_aids_memory_item_id ON memory_aids(memory_item_id);
+CREATE INDEX IF NOT EXISTS idx_shares_user_id ON shares(user_id);
+CREATE INDEX IF NOT EXISTS idx_shares_memory_item_id ON shares(memory_item_id);
+CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
