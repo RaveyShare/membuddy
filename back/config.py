@@ -30,7 +30,6 @@ class Settings(BaseSettings):
         "https://front-4jsgo8xpz-raveys-projects.vercel.app",  # Previous Vercel frontend
         "https://front-d19hf1aa7-raveys-projects.vercel.app",  # Previous Vercel frontend
         "https://*.vercel.app",  # All Vercel apps (wildcard)
-        "https://*.onrender.com",  # Render apps
     ]
 
     class Config:

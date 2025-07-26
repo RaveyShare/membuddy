@@ -64,7 +64,5 @@ logs/
 
 # Development files
 start.sh
-render.yaml
-DEPLOY.md
 pyproject.toml
 uv.lock

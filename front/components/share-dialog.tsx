@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Copy, Link, QrCode, Mail, MessageSquare, Share, Eye, Volume2, Hand } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { QRCodeSVG } from "qrcode.react"
+
 
 interface ShareDialogProps {
   open: boolean
@@ -23,8 +24,6 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
   const { toast } = useToast()
-
-  if (!content) return null
 
   const getTitle = () => {
     if (!type || !content) return "分享内容"
@@ -44,10 +43,12 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [isGeneratingShare, setIsGeneratingShare] = useState(false)
 
-  const generateShareUrl = async () => {
+  const generateShareUrl = useCallback(async () => {
+    console.log('generateShareUrl called', { shareUrl, isGeneratingShare, open, type, content })
     if (shareUrl || isGeneratingShare) return shareUrl
     
     setIsGeneratingShare(true)
+    console.log('Starting to generate share URL...')
     try {
       // Get the memory item ID from content or URL
       const memoryItemId = content.memoryItemId || new URLSearchParams(window.location.search).get('id')
@@ -61,7 +62,7 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
         throw new Error('Authentication required')
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/share`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://orlxraudryzx.ap-southeast-1.clawcloudrun.com/api'}/share`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -96,14 +97,23 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
     } finally {
       setIsGeneratingShare(false)
     }
-  }
+  }, [shareUrl, isGeneratingShare, content, type, toast])
+
+  // Reset shareUrl when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setShareUrl(null)
+    }
+  }, [open])
 
   // Generate share URL when dialog opens
   useEffect(() => {
+    console.log('ShareDialog useEffect triggered', { open, shareUrl, type, content })
     if (open && !shareUrl) {
+      console.log('Calling generateShareUrl...')
       generateShareUrl()
     }
-  }, [open])
+  }, [open, shareUrl, generateShareUrl])
 
   const handleCopyLink = () => {
     if (!shareUrl) return
@@ -203,7 +213,7 @@ export default function ShareDialog({ open, onOpenChange, type, content }: Share
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open && !!content} onOpenChange={onOpenChange}>
       <DialogContent className="border-white/10 bg-black text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{getTitle()}</DialogTitle>
