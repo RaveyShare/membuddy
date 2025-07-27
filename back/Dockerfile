@@ -16,12 +16,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制应用代码
 COPY . .
 
+# 复制 Google Cloud service account 密钥文件（如果存在）
+COPY service-account-key.json* /app/google-credentials.json
+
 # 暴露端口
 EXPOSE 8000
 
 # 设置环境变量
 ENV PYTHONPATH=/app
 ENV PORT=8000
+ENV GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
 
 # 启动命令
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

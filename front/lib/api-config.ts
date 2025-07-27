@@ -12,7 +12,7 @@ import { jwtDecode } from "jwt-decode";
 // API Base URL - 根据环境自动选择
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? process.env.NEXT_PUBLIC_API_URL || "https://your-claw-cloud-domain.com/api"
-  : "http://localhost:8000/api"
+  : "http://localhost:8001/api"
 
 // 创建带超时的fetch函数
 const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 10000) => {
@@ -90,6 +90,49 @@ export const api = {
     logout: async (): Promise<void> => {
       authManager.clearAuth();
       return Promise.resolve();
+    },
+
+    // WeChat login endpoints
+    wechatMiniLogin: async (code: string, userInfo?: any): Promise<AuthResponse> => {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/wechat/mini`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, user_info: userInfo }),
+      }, 8000);
+      const data = await handleResponse<{ access_token: string, user: any }>(response);
+
+      const user = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.full_name,
+        avatar: data.user.wechat_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.user.id}`,
+        createdAt: new Date().toISOString(),
+      };
+
+      const authData = { user, token: data.access_token, refreshToken: "" };
+      authManager.setAuth(authData);
+      return authData;
+    },
+
+    wechatMpLogin: async (code: string, state: string): Promise<AuthResponse> => {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/wechat/mp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, state }),
+      }, 8000);
+      const data = await handleResponse<{ access_token: string, user: any }>(response);
+
+      const user = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.full_name,
+        avatar: data.user.wechat_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.user.id}`,
+        createdAt: new Date().toISOString(),
+      };
+
+      const authData = { user, token: data.access_token, refreshToken: "" };
+      authManager.setAuth(authData);
+      return authData;
     },
   },
 

@@ -10,6 +10,9 @@ import logging
 import uuid
 import asyncio
 from datetime import datetime, timedelta
+import requests
+import hashlib
+import hmac
 
 from config import settings
 from database import get_anon_supabase
@@ -25,7 +28,16 @@ app = FastAPI(title="MemBuddy API")
 # --- CORS Middleware ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=[
+        "http://localhost:3000",  # React frontend
+        "http://localhost:8000",  # FastAPI backend
+        "https://membuddy.ravey.site",  # Custom domain
+        "https://front-75934ladd-raveys-projects.vercel.app",  # Latest Vercel frontend
+        "https://front-4jsgo8xpz-raveys-projects.vercel.app",  # Previous Vercel frontend
+        "https://front-d19hf1aa7-raveys-projects.vercel.app",  # Previous Vercel frontend
+        "https://front-284p2e3tw-raveys-projects.vercel.app",  # Current Vercel frontend
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Support all Vercel apps
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,6 +101,213 @@ def forgot_password(payload: schemas.ForgotPasswordPayload, supabase: Client = D
     except Exception as e:
         logger.error(f"Forgot password attempt for {payload.email} resulted in error: {e}")
         return {"message": "If an account with this email exists, a password reset link has been sent."}
+
+# --- WeChat Auth Routes ---
+@app.post("/api/auth/wechat/mini", response_model=schemas.User)
+def wechat_mini_login(request: schemas.WechatMiniLoginRequest, supabase: Client = Depends(get_anon_supabase)):
+    """
+    微信小程序登录
+    """
+    try:
+        # 1. 向微信服务器验证 code
+        wx_url = "https://api.weixin.qq.com/sns/jscode2session"
+        params = {
+            "appid": settings.WECHAT_MINI_APP_ID,
+            "secret": settings.WECHAT_MINI_APP_SECRET,
+            "js_code": request.code,
+            "grant_type": "authorization_code"
+        }
+        
+        response = requests.get(wx_url, params=params)
+        wx_data = response.json()
+        
+        if "errcode" in wx_data:
+            raise HTTPException(status_code=400, detail=f"WeChat API error: {wx_data.get('errmsg', 'Unknown error')}")
+        
+        openid = wx_data.get("openid")
+        unionid = wx_data.get("unionid")
+        session_key = wx_data.get("session_key")
+        
+        if not openid:
+            raise HTTPException(status_code=400, detail="Failed to get openid from WeChat")
+        
+        # 2. 查找或创建用户
+        user_query = supabase.table("users").select("*").eq("wechat_openid", openid)
+        if unionid:
+            user_query = user_query.or_(f"wechat_unionid.eq.{unionid}")
+        
+        existing_user = user_query.execute()
+        
+        if existing_user.data:
+            # 用户已存在，更新信息
+            user_data = existing_user.data[0]
+            update_data = {
+                "wechat_openid": openid,
+                "wechat_unionid": unionid,
+                "wechat_nickname": request.user_info.nickname if request.user_info else None,
+                "wechat_avatar": request.user_info.avatar_url if request.user_info else None
+            }
+            supabase.table("users").update(update_data).eq("id", user_data["id"]).execute()
+            user_id = user_data["id"]
+            email = user_data.get("email", f"wechat_{openid}@membuddy.local")
+            full_name = user_data.get("full_name") or (request.user_info.nickname if request.user_info else "微信用户")
+        else:
+            # 创建新用户
+            new_user_data = {
+                "id": str(uuid.uuid4()),
+                "email": f"wechat_{openid}@membuddy.local",
+                "full_name": request.user_info.nickname if request.user_info else "微信用户",
+                "wechat_openid": openid,
+                "wechat_unionid": unionid,
+                "wechat_nickname": request.user_info.nickname if request.user_info else None,
+                "wechat_avatar": request.user_info.avatar_url if request.user_info else None,
+                "created_at": datetime.utcnow().isoformat()
+            }
+            
+            result = supabase.table("users").insert(new_user_data).execute()
+            if not result.data:
+                raise HTTPException(status_code=500, detail="Failed to create user")
+            
+            user_id = new_user_data["id"]
+            email = new_user_data["email"]
+            full_name = new_user_data["full_name"]
+        
+        # 3. 生成 JWT token
+        access_token = jwt.encode({
+            "sub": user_id,
+            "email": email,
+            "full_name": full_name,
+            "exp": datetime.utcnow() + timedelta(days=30)
+        }, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": user_id,
+                "email": email,
+                "full_name": full_name,
+                "wechat_openid": openid,
+                "wechat_unionid": unionid
+            }
+        }
+        
+    except requests.RequestException as e:
+        logger.error(f"WeChat API request failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to communicate with WeChat API")
+    except Exception as e:
+        logger.error(f"WeChat mini login error: {e}")
+        raise HTTPException(status_code=500, detail="WeChat login failed")
+
+@app.post("/api/auth/wechat/mp", response_model=schemas.User)
+def wechat_mp_login(request: schemas.WechatMpLoginRequest, supabase: Client = Depends(get_anon_supabase)):
+    """
+    微信公众号网页授权登录
+    """
+    try:
+        # 1. 使用 code 获取 access_token
+        token_url = "https://api.weixin.qq.com/sns/oauth2/access_token"
+        token_params = {
+            "appid": settings.WECHAT_MP_APP_ID,
+            "secret": settings.WECHAT_MP_APP_SECRET,
+            "code": request.code,
+            "grant_type": "authorization_code"
+        }
+        
+        token_response = requests.get(token_url, params=token_params)
+        token_data = token_response.json()
+        
+        if "errcode" in token_data:
+            raise HTTPException(status_code=400, detail=f"WeChat API error: {token_data.get('errmsg', 'Unknown error')}")
+        
+        access_token = token_data.get("access_token")
+        openid = token_data.get("openid")
+        unionid = token_data.get("unionid")
+        
+        if not access_token or not openid:
+            raise HTTPException(status_code=400, detail="Failed to get access token from WeChat")
+        
+        # 2. 获取用户信息
+        userinfo_url = "https://api.weixin.qq.com/sns/userinfo"
+        userinfo_params = {
+            "access_token": access_token,
+            "openid": openid,
+            "lang": "zh_CN"
+        }
+        
+        userinfo_response = requests.get(userinfo_url, params=userinfo_params)
+        userinfo_data = userinfo_response.json()
+        
+        if "errcode" in userinfo_data:
+            raise HTTPException(status_code=400, detail=f"WeChat userinfo error: {userinfo_data.get('errmsg', 'Unknown error')}")
+        
+        # 3. 查找或创建用户
+        user_query = supabase.table("users").select("*").eq("wechat_openid", openid)
+        if unionid:
+            user_query = user_query.or_(f"wechat_unionid.eq.{unionid}")
+        
+        existing_user = user_query.execute()
+        
+        if existing_user.data:
+            # 用户已存在，更新信息
+            user_data = existing_user.data[0]
+            update_data = {
+                "wechat_openid": openid,
+                "wechat_unionid": unionid,
+                "wechat_nickname": userinfo_data.get("nickname"),
+                "wechat_avatar": userinfo_data.get("headimgurl")
+            }
+            supabase.table("users").update(update_data).eq("id", user_data["id"]).execute()
+            user_id = user_data["id"]
+            email = user_data.get("email", f"wechat_{openid}@membuddy.local")
+            full_name = user_data.get("full_name") or userinfo_data.get("nickname", "微信用户")
+        else:
+            # 创建新用户
+            new_user_data = {
+                "id": str(uuid.uuid4()),
+                "email": f"wechat_{openid}@membuddy.local",
+                "full_name": userinfo_data.get("nickname", "微信用户"),
+                "wechat_openid": openid,
+                "wechat_unionid": unionid,
+                "wechat_nickname": userinfo_data.get("nickname"),
+                "wechat_avatar": userinfo_data.get("headimgurl"),
+                "created_at": datetime.utcnow().isoformat()
+            }
+            
+            result = supabase.table("users").insert(new_user_data).execute()
+            if not result.data:
+                raise HTTPException(status_code=500, detail="Failed to create user")
+            
+            user_id = new_user_data["id"]
+            email = new_user_data["email"]
+            full_name = new_user_data["full_name"]
+        
+        # 4. 生成 JWT token
+        access_token_jwt = jwt.encode({
+            "sub": user_id,
+            "email": email,
+            "full_name": full_name,
+            "exp": datetime.utcnow() + timedelta(days=30)
+        }, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+        
+        return {
+            "access_token": access_token_jwt,
+            "token_type": "bearer",
+            "user": {
+                "id": user_id,
+                "email": email,
+                "full_name": full_name,
+                "wechat_openid": openid,
+                "wechat_unionid": unionid
+            }
+        }
+        
+    except requests.RequestException as e:
+        logger.error(f"WeChat API request failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to communicate with WeChat API")
+    except Exception as e:
+        logger.error(f"WeChat MP login error: {e}")
+        raise HTTPException(status_code=500, detail="WeChat login failed")
 
 # --- Memory Item CRUD ---
 @app.get("/api/memory_items", response_model=List[schemas.MemoryItem])

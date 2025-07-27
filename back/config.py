@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     GOOGLE_CLOUD_PROJECT_ID: str = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "your-google-cloud-project-id")
     GOOGLE_CLOUD_LOCATION: str = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
     
+    # WeChat Configuration
+    WECHAT_MINI_APP_ID: str = os.getenv("WECHAT_MINI_APP_ID", "")
+    WECHAT_MINI_APP_SECRET: str = os.getenv("WECHAT_MINI_APP_SECRET", "")
+    WECHAT_MP_APP_ID: str = os.getenv("WECHAT_MP_APP_ID", "")
+    WECHAT_MP_APP_SECRET: str = os.getenv("WECHAT_MP_APP_SECRET", "")
+    
     # Frontend
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://membuddy.ravey.site")
 

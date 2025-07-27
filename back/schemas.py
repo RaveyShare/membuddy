@@ -15,8 +15,32 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+# --- WeChat Login Schemas ---
+class WechatMiniLoginRequest(BaseModel):
+    code: str
+    encrypted_data: Optional[str] = None
+    iv: Optional[str] = None
+
+class WechatMpLoginRequest(BaseModel):
+    code: str
+    state: str
+
+class WechatUserInfo(BaseModel):
+    openid: str
+    unionid: Optional[str] = None
+    nickname: Optional[str] = None
+    avatar: Optional[str] = None
+    gender: Optional[int] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    country: Optional[str] = None
+
 class User(UserBase):
     id: uuid.UUID
+    wechat_openid: Optional[str] = None
+    wechat_unionid: Optional[str] = None
+    wechat_nickname: Optional[str] = None
+    wechat_avatar: Optional[str] = None
     class Config:
         from_attributes = True
 
