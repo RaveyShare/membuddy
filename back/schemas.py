@@ -147,3 +147,27 @@ class ShareResponse(BaseModel):
     share_id: str
     share_url: str
 
+# --- Media Generation Schemas ---
+class ImageGenerateRequest(BaseModel):
+    content: str
+    context: Optional[str] = ""
+
+class AudioGenerateRequest(BaseModel):
+    content: str
+    context: Optional[str] = ""
+
+class ImageGenerateResponse(BaseModel):
+    prompt: str
+    image_url: Optional[str] = None
+    image_base64: Optional[str] = None
+    status: str = "generated"
+
+class AudioGenerateResponse(BaseModel):
+    script: str
+    audio_base64: Optional[str] = None
+    duration: Optional[float] = None
+    sound_description: Optional[str] = None
+    sound_type: Optional[str] = None
+    message: Optional[str] = None
+    status: str = "generated"
+

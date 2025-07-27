@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from config import settings
 from database import get_anon_supabase
 import schemas
-from gemini import generate_memory_aids, generate_review_schedule_from_ebbinghaus
+from gemini import generate_memory_aids, generate_review_schedule_from_ebbinghaus, generate_image, generate_audio
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO)
@@ -340,6 +340,50 @@ def get_share(share_id: str, supabase: Client = Depends(get_anon_supabase)):
         created_at=datetime.fromisoformat(share_data['created_at']),
         expires_at=datetime.fromisoformat(share_data['expires_at']) if share_data.get('expires_at') else None
     )
+
+# --- Media Generation Routes ---
+@app.post("/api/generate/image", response_model=schemas.ImageGenerateResponse)
+async def generate_image_endpoint(request: schemas.ImageGenerateRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Generate an actual image based on visual association content
+    """
+    try:
+        result = await generate_image(request.content, request.context)
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to generate image")
+        
+        return schemas.ImageGenerateResponse(
+            image_url=result.get('image_url'),
+            image_base64=result.get('image_base64'),
+            prompt=result.get('prompt'),
+            status="generated"
+        )
+    except Exception as e:
+        logger.error(f"Error generating image: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate image")
+
+@app.post("/api/generate/audio", response_model=schemas.AudioGenerateResponse)
+async def generate_audio_endpoint(request: schemas.AudioGenerateRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Generate actual audio based on auditory association content
+    """
+    try:
+        result = await generate_audio(request.content, request.context)
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to generate audio")
+        
+        return schemas.AudioGenerateResponse(
+            audio_base64=result.get('audio_base64'),
+            script=result.get('script'),
+            duration=result.get('duration'),
+            sound_description=result.get('sound_description'),
+            sound_type=result.get('sound_type'),
+            message=result.get('message'),
+            status="generated"
+        )
+    except Exception as e:
+        logger.error(f"Error generating audio: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate audio")
 
 if __name__ == "__main__":
     import uvicorn

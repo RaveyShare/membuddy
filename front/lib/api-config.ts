@@ -102,7 +102,7 @@ export const api = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }, 6000)
+    }, 15000)
     return handleResponse<MemoryItem[]>(response)
   },
 
@@ -114,7 +114,7 @@ export const api = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }, 5000)
+    }, 15000)
     return handleResponse<MemoryItem>(response)
   },
 
@@ -172,7 +172,7 @@ export const api = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }, 5000);
+    }, 15000);
     return handleResponse<ReviewSchedule[]>(response);
   },
 
@@ -226,7 +226,38 @@ export const api = {
     // 删除成功，但不返回内容
     return;
 
-    }
+    },
+
+  // Media generation endpoints
+  generateImage: async (content: string, context: string = ""): Promise<{prompt: string, image_url?: string, image_base64?: string, status: string}> => {
+    const token = authManager.getToken()
+    if (!token) throw new Error("Not authenticated")
+
+    const response = await fetchWithTimeout(`${API_BASE_URL}/generate/image`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ content, context }),
+    }, 15000)
+    return handleResponse<{prompt: string, image_url?: string, image_base64?: string, status: string}>(response)
+  },
+
+  generateAudio: async (content: string, context: string = ""): Promise<{script: string, audio_base64?: string, duration?: number, sound_description?: string, sound_type?: string, message?: string, status: string}> => {
+    const token = authManager.getToken()
+    if (!token) throw new Error("Not authenticated")
+
+    const response = await fetchWithTimeout(`${API_BASE_URL}/generate/audio`, {
+    method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ content, context }),
+    }, 15000)
+    return handleResponse<{script: string, audio_base64?: string, duration?: number, status: string}>(response)
+  },
 
 }
 

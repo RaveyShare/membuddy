@@ -2,8 +2,10 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Copy, Share2, Eye, Volume2, Hand } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { Copy, Share2, Eye, Volume2, Hand, Image, Music } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/api-config"
+import { useState } from "react"
 
 interface SensoryAssociationProps {
   association: {
@@ -17,6 +19,9 @@ interface SensoryAssociationProps {
 
 export default function SensoryAssociation({ association, onShare }: SensoryAssociationProps) {
   const { toast } = useToast()
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
+  const [generatedContent, setGeneratedContent] = useState<{[key: string]: any}>({})
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -44,6 +49,71 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
     }
   }
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast({
+      title: "已复制到剪贴板",
+      description: "内容已成功复制到剪贴板",
+    })
+  }
+
+  const generateImage = async (content: string, type: string) => {
+    setIsGeneratingImage(true)
+    try {
+      const result = await api.generateImage(content, `视觉联想: ${type}`)
+      setGeneratedContent(prev => ({ 
+        ...prev, 
+        [`image_${type}`]: {
+          prompt: result.prompt,
+          image_url: result.image_url,
+          image_base64: result.image_base64
+        }
+      }))
+      toast({
+        title: "图片生成成功",
+        description: "AI图片已生成完成",
+      })
+    } catch (error) {
+      toast({
+        title: "生成失败",
+        description: "图片生成失败，请稍后重试",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGeneratingImage(false)
+    }
+  }
+
+  const generateAudio = async (content: string, type: string) => {
+    setIsGeneratingAudio(true)
+    try {
+      const result = await api.generateAudio(content, `听觉联想: ${type}`)
+      setGeneratedContent(prev => ({ 
+        ...prev, 
+        [`audio_${type}`]: {
+          script: result.script,
+          audio_base64: result.audio_base64,
+          duration: result.duration,
+          sound_description: result.sound_description,
+          sound_type: result.sound_type,
+          message: result.message
+        }
+      }))
+      toast({
+        title: "音频生成成功",
+        description: "AI音频已生成完成",
+      })
+    } catch (error) {
+      toast({
+        title: "生成失败",
+        description: "音频生成失败，请稍后重试",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGeneratingAudio(false)
+    }
+  }
+
   const handleCopy = () => {
     const content = association.content
       .map((item) => {
@@ -57,11 +127,7 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
       })
       .join("\n")
 
-    navigator.clipboard.writeText(content)
-    toast({
-      title: "已复制到剪贴板",
-      description: "内容已成功复制到剪贴板",
-    })
+    copyToClipboard(content)
   }
 
   const renderVisualContent = (content: any[]) => (
@@ -77,6 +143,52 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
             <h4 className="font-medium text-white">{item.dynasty}</h4>
           </div>
           <p className="text-sm text-white">{item.association}</p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => generateImage(item.association, item.dynasty)}
+              disabled={isGeneratingImage}
+              className="flex items-center gap-1"
+            >
+              <Image className="h-3 w-3" />
+              {isGeneratingImage ? '生成中...' : '生成图片'}
+            </Button>
+            {generatedContent[`image_${item.dynasty}`] && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => copyToClipboard(typeof generatedContent[`image_${item.dynasty}`] === 'string' ? generatedContent[`image_${item.dynasty}`] : generatedContent[`image_${item.dynasty}`].prompt)}
+                className="flex items-center gap-1"
+              >
+                <Copy className="h-3 w-3" />
+                复制提示词
+              </Button>
+            )}
+          </div>
+          {generatedContent[`image_${item.dynasty}`] && (
+            <div className="mt-2 rounded-lg bg-green-500/10 p-3">
+              {typeof generatedContent[`image_${item.dynasty}`] === 'string' ? (
+                <>
+                  <p className="text-sm font-medium text-green-400">AI图片生成提示词:</p>
+                  <p className="text-sm text-white">{generatedContent[`image_${item.dynasty}`]}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-green-400">AI生成的图片:</p>
+                  {generatedContent[`image_${item.dynasty}`].image_base64 && (
+                    <img 
+                      src={generatedContent[`image_${item.dynasty}`].image_base64}
+                      alt="Generated image"
+                      className="mt-2 max-w-full rounded-lg"
+                    />
+                  )}
+                  <p className="text-sm font-medium text-green-400 mt-2">提示词:</p>
+                  <p className="text-sm text-white">{generatedContent[`image_${item.dynasty}`].prompt}</p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -103,6 +215,76 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
               {item.rhythm}
             </p>
           </div>
+          <div className="mt-3 flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => generateAudio(`${item.sound}, ${item.rhythm}`, item.dynasty)}
+              disabled={isGeneratingAudio}
+              className="flex items-center gap-1"
+            >
+              <Music className="h-3 w-3" />
+              {isGeneratingAudio ? '生成中...' : '生成音频'}
+            </Button>
+            {generatedContent[`audio_${item.dynasty}`] && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => copyToClipboard(typeof generatedContent[`audio_${item.dynasty}`] === 'string' ? generatedContent[`audio_${item.dynasty}`] : generatedContent[`audio_${item.dynasty}`].script)}
+                className="flex items-center gap-1"
+              >
+                <Copy className="h-3 w-3" />
+                复制脚本
+              </Button>
+            )}
+          </div>
+          {generatedContent[`audio_${item.dynasty}`] && (
+            <div className="mt-2 rounded-lg bg-green-500/10 p-3">
+              {typeof generatedContent[`audio_${item.dynasty}`] === 'string' ? (
+                <>
+                  <p className="text-sm font-medium text-green-400">AI音频生成描述:</p>
+                  <p className="text-sm text-white">{generatedContent[`audio_${item.dynasty}`]}</p>
+                </>
+              ) : (
+                <>
+                  {generatedContent[`audio_${item.dynasty}`].sound_type === 'environmental' ? (
+                    <>
+                      <p className="text-sm font-medium text-green-400">环境音效描述:</p>
+                      <p className="text-sm text-white">{generatedContent[`audio_${item.dynasty}`].script}</p>
+                      {generatedContent[`audio_${item.dynasty}`].sound_description && (
+                        <>
+                          <p className="text-sm font-medium text-green-400 mt-2">声音特征:</p>
+                          <p className="text-sm text-white">{generatedContent[`audio_${item.dynasty}`].sound_description}</p>
+                        </>
+                      )}
+                      {generatedContent[`audio_${item.dynasty}`].message && (
+                        <p className="text-sm text-blue-400 mt-2">{generatedContent[`audio_${item.dynasty}`].message}</p>
+                      )}
+                      {generatedContent[`audio_${item.dynasty}`].duration && (
+                        <p className="text-sm text-gray-400 mt-1">预期时长: {generatedContent[`audio_${item.dynasty}`].duration.toFixed(1)}秒</p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-green-400">AI生成的音频:</p>
+                      {generatedContent[`audio_${item.dynasty}`].audio_base64 && (
+                        <audio 
+                          controls 
+                          className="mt-2 w-full"
+                          src={generatedContent[`audio_${item.dynasty}`].audio_base64}
+                        />
+                      )}
+                      <p className="text-sm font-medium text-green-400 mt-2">脚本:</p>
+                      <p className="text-sm text-white">{generatedContent[`audio_${item.dynasty}`].script}</p>
+                      {generatedContent[`audio_${item.dynasty}`].duration && (
+                        <p className="text-sm text-gray-400 mt-1">时长: {generatedContent[`audio_${item.dynasty}`].duration.toFixed(1)}秒</p>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       ))}
     </div>

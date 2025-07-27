@@ -306,7 +306,7 @@ export default function Home() {
               <Brain className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 lg:h-14 lg:w-14 text-cyan-400" />
               小杏仁记忆
             </h1>
-            <p className="mx-auto max-w-2xl text-white/80 sm:text-xl">你只管学习，小杏仁帮你记忆</p>
+            <p className="mx-auto max-w-2xl text-white/80 sm:text-xl">你只管学习，小杏仁帮你记忆，AI驱动的记忆架构师</p>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}

@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 import os
 from dotenv import load_dotenv
 
@@ -12,17 +12,21 @@ class Settings(BaseSettings):
     
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "your-supabase-url-here")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "your-supabase-key-here")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_ANON_KEY", "your-supabase-key-here")
     SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "your-supabase-jwt-secret-here")
 
     # Gemini
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "your-gemini-api-key-here")
     
+    # Google Cloud
+    GOOGLE_CLOUD_PROJECT_ID: str = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "your-google-cloud-project-id")
+    GOOGLE_CLOUD_LOCATION: str = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+    
     # Frontend
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://membuddy.ravey.site")
 
     # CORS
-    BACKEND_CORS_ORIGINS: list = [
+    BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",  # React frontend
         "http://localhost:8000",  # FastAPI backend
         "https://membuddy.ravey.site",  # Custom domain
