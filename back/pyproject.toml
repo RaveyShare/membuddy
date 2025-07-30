@@ -12,4 +12,9 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "supabase>=2.0.0",
     "google-generativeai>=0.3.0",
+    "pydantic-settings>=2.10.1",
+    "email-validator>=2.2.0",
+    "google-cloud-texttospeech>=2.27.0",
+    "google-cloud-aiplatform>=1.105.0",
+    "httpx[socks]>=0.28.1",
 ]

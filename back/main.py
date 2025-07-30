@@ -327,10 +327,63 @@ def get_memory_items(skip: int = 0, limit: int = 100, current_user: dict = Depen
             item_id = aid_data['memory_item_id']
             if item_id in items_map:
                 # Structure the aids data as expected by the schema
+                mind_map_data = json.loads(aid_data.get('mind_map_data', '{}'))
+                # Convert empty or invalid mindMap object to None
+                if mind_map_data == {} or not isinstance(mind_map_data, dict) or not mind_map_data.get('id') or not mind_map_data.get('label'):
+                    mind_map_data = None
+                
+                # Handle mnemonics data conversion
+                mnemonics_data = json.loads(aid_data.get('mnemonics_data', '[]'))
+                converted_mnemonics = []
+                for i, item in enumerate(mnemonics_data):
+                    if isinstance(item, dict):
+                        # Convert old format to new format
+                        if 'technique' in item and 'content' in item:
+                            converted_item = {
+                                "id": str(i),
+                                "title": item.get('technique', ''),
+                                "content": item.get('content', ''),
+                                "type": "mnemonic",
+                                "explanation": item.get('explanation', '')
+                            }
+                            converted_mnemonics.append(converted_item)
+                        else:
+                            # Already in new format or has required fields
+                            if 'id' in item and 'title' in item and 'content' in item and 'type' in item:
+                                converted_mnemonics.append(item)
+                
+                # Handle sensoryAssociations data conversion
+                sensory_data = json.loads(aid_data.get('sensory_associations_data', '[]'))
+                converted_sensory = []
+                for i, item in enumerate(sensory_data):
+                    if isinstance(item, dict):
+                        # Convert old format to new format
+                        if 'sense' in item and 'desc' in item:
+                            converted_item = {
+                                "id": str(i),
+                                "title": item.get('sense', ''),
+                                "type": item.get('sense', '').lower(),
+                                "content": [{
+                                    "dynasty": "",
+                                    "association": item.get('desc', ''),
+                                    "image": "",
+                                    "color": "",
+                                    "sound": "",
+                                    "rhythm": "",
+                                    "texture": "",
+                                    "feeling": ""
+                                }]
+                            }
+                            converted_sensory.append(converted_item)
+                        else:
+                            # Already in new format or has required fields
+                            if 'id' in item and 'title' in item and 'type' in item and 'content' in item:
+                                converted_sensory.append(item)
+                    
                 items_map[item_id]['memory_aids'] = {
-                    "mindMap": json.loads(aid_data.get('mind_map_data', '{}')),
-                    "mnemonics": json.loads(aid_data.get('mnemonics_data', '[]')),
-                    "sensoryAssociations": json.loads(aid_data.get('sensory_associations_data', '[]'))
+                    "mindMap": mind_map_data,
+                    "mnemonics": converted_mnemonics,
+                    "sensoryAssociations": converted_sensory
                 }
 
     # Step 3: Validate and return the combined data
@@ -385,10 +438,60 @@ def get_memory_item(item_id: uuid.UUID, current_user: dict = Depends(get_current
     
     if aids_res.data:
         aids_data = aids_res.data[0]
+        
+        # Handle mindMap data conversion
+        mind_map_data = json.loads(aids_data.get('mind_map_data', '{}'))
+        if mind_map_data == {}:
+            mind_map_data = None
+        
+        # Handle mnemonics data conversion
+        mnemonics_data = json.loads(aids_data.get('mnemonics_data', '[]'))
+        converted_mnemonics = []
+        for i, item in enumerate(mnemonics_data):
+            if isinstance(item, dict):
+                if 'technique' in item and 'content' in item:
+                    converted_item = {
+                        "id": str(i),
+                        "title": item.get('technique', ''),
+                        "content": item.get('content', ''),
+                        "type": "mnemonic",
+                        "explanation": item.get('explanation', '')
+                    }
+                    converted_mnemonics.append(converted_item)
+                else:
+                    if 'id' in item and 'title' in item and 'content' in item and 'type' in item:
+                        converted_mnemonics.append(item)
+        
+        # Handle sensoryAssociations data conversion
+        sensory_data = json.loads(aids_data.get('sensory_associations_data', '[]'))
+        converted_sensory = []
+        for i, item in enumerate(sensory_data):
+            if isinstance(item, dict):
+                if 'sense' in item and 'desc' in item:
+                    converted_item = {
+                        "id": str(i),
+                        "title": item.get('sense', ''),
+                        "type": item.get('sense', '').lower(),
+                        "content": [{
+                            "dynasty": "",
+                            "association": item.get('desc', ''),
+                            "image": "",
+                            "color": "",
+                            "sound": "",
+                            "rhythm": "",
+                            "texture": "",
+                            "feeling": ""
+                        }]
+                    }
+                    converted_sensory.append(converted_item)
+                else:
+                    if 'id' in item and 'title' in item and 'type' in item and 'content' in item:
+                        converted_sensory.append(item)
+        
         item_data['memory_aids'] = {
-            "mindMap": json.loads(aids_data.get('mind_map_data', '{}')),
-            "mnemonics": json.loads(aids_data.get('mnemonics_data', '[]')),
-            "sensoryAssociations": json.loads(aids_data.get('sensory_associations_data', '[]'))
+            "mindMap": mind_map_data,
+            "mnemonics": converted_mnemonics,
+            "sensoryAssociations": converted_sensory
         }
             
     return schemas.MemoryItem.model_validate(item_data)

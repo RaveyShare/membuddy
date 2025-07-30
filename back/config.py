@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     # Gemini
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "your-gemini-api-key-here")
+    GEMINI_BASE_URL: str = os.getenv("GEMINI_BASE_URL", "https://your-claw-domain.com/gemini-proxy")
     
     # Google Cloud
     GOOGLE_CLOUD_PROJECT_ID: str = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "your-google-cloud-project-id")

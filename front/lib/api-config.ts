@@ -11,7 +11,7 @@ import { jwtDecode } from "jwt-decode";
 
 // API Base URL - 根据环境自动选择
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? process.env.NEXT_PUBLIC_API_URL || "https://your-claw-cloud-domain.com/api"
+  ? process.env.NEXT_PUBLIC_API_URL || "https://your-aliyun-backend-domain.com/api"
   : "http://localhost:8000/api"
 
 // 创建带超时的fetch函数

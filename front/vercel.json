@@ -4,6 +4,6 @@
   "framework": "nextjs",
   "installCommand": "pnpm install",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://your-claw-cloud-domain.com/api"
+    "NEXT_PUBLIC_API_URL": "https://your-aliyun-backend-domain.com/api"
   }
 }

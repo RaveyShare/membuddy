@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  wechat-service:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - WECHAT_APP_ID=${WECHAT_APP_ID}
+      - WECHAT_APP_SECRET=${WECHAT_APP_SECRET}
+      - WECHAT_MINI_APP_ID=${WECHAT_MINI_APP_ID}
+      - WECHAT_MINI_APP_SECRET=${WECHAT_MINI_APP_SECRET}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -9,15 +9,61 @@ from io import BytesIO
 import uuid
 import os
 from google.cloud import texttospeech
-from vertexai.preview.vision_models import ImageGenerationModel
 import vertexai
-
-genai.configure(api_key=settings.GEMINI_API_KEY)
-
-# Initialize Vertex AI
 try:
-    vertexai.init(project=settings.GOOGLE_CLOUD_PROJECT_ID, location=settings.GOOGLE_CLOUD_LOCATION)
-    print(f"Vertex AI initialized with project: {settings.GOOGLE_CLOUD_PROJECT_ID}")
+    from google import genai as google_genai
+    from google.genai import types
+except ImportError:
+    # Fallback to old API if new one is not available
+    from vertexai.preview.vision_models import ImageGenerationModel
+
+# 配置Gemini API
+if settings.GEMINI_BASE_URL != "https://generativelanguage.googleapis.com":
+    # 使用代理时，通过requests直接调用
+    print(f"Using Gemini proxy: {settings.GEMINI_BASE_URL}")
+else:
+    # 直接使用Google SDK
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    print("Using direct Gemini API access")
+
+# Set Google Cloud credentials
+credentials_path = os.path.join(os.path.dirname(__file__), "service-account-key.json", "gen-lang-client-0374473221-e19a8e500cef.json")
+if os.path.exists(credentials_path):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+    print(f"Google Cloud credentials set: {credentials_path}")
+else:
+    print(f"Warning: Google Cloud credentials file not found: {credentials_path}")
+
+# Initialize Vertex AI with explicit credentials
+try:
+    from google.oauth2 import service_account
+    if os.path.exists(credentials_path):
+        credentials = service_account.Credentials.from_service_account_file(credentials_path)
+        vertexai.init(project=settings.GOOGLE_CLOUD_PROJECT_ID, location=settings.GOOGLE_CLOUD_LOCATION, credentials=credentials)
+        print(f"Vertex AI initialized with explicit credentials for project: {settings.GOOGLE_CLOUD_PROJECT_ID}")
+        
+        # Initialize Google Gen AI SDK
+        try:
+            # Set environment variables for Vertex AI
+            os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+            os.environ["GOOGLE_CLOUD_PROJECT"] = settings.GOOGLE_CLOUD_PROJECT_ID
+            os.environ["GOOGLE_CLOUD_LOCATION"] = settings.GOOGLE_CLOUD_LOCATION
+            print("Google Gen AI SDK environment configured for Vertex AI")
+        except Exception as genai_error:
+            print(f"Google Gen AI SDK initialization failed: {genai_error}")
+    else:
+        vertexai.init(project=settings.GOOGLE_CLOUD_PROJECT_ID, location=settings.GOOGLE_CLOUD_LOCATION)
+        print(f"Vertex AI initialized with default credentials for project: {settings.GOOGLE_CLOUD_PROJECT_ID}")
+        
+        # Initialize Google Gen AI SDK with default credentials
+        try:
+            # Set environment variables for Vertex AI
+            os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+            os.environ["GOOGLE_CLOUD_PROJECT"] = settings.GOOGLE_CLOUD_PROJECT_ID
+            os.environ["GOOGLE_CLOUD_LOCATION"] = settings.GOOGLE_CLOUD_LOCATION
+            print("Google Gen AI SDK environment configured for Vertex AI (default credentials)")
+        except Exception as genai_error:
+            print(f"Google Gen AI SDK initialization failed: {genai_error}")
 except Exception as e:
     print(f"Warning: Vertex AI initialization failed: {e}")
 
@@ -143,15 +189,56 @@ def parse_gemini_response(text: str):
         print(f"Error parsing Gemini response: {e}")
         return None
 
+async def call_gemini_via_proxy(prompt: str, model_name: str = "gemini-1.5-flash"):
+    """通过代理调用Gemini API"""
+    try:
+        url = f"{settings.GEMINI_BASE_URL}/v1beta/models/{model_name}:generateContent"
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": settings.GEMINI_API_KEY
+        }
+        
+        payload = {
+            "contents": [{
+                "parts": [{
+                    "text": prompt
+                }]
+            }]
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        if "candidates" in result and len(result["candidates"]) > 0:
+            return result["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            print(f"Unexpected Gemini response format: {result}")
+            return None
+            
+    except Exception as e:
+        print(f"Error calling Gemini via proxy: {e}")
+        return None
+
 async def generate_memory_aids(content: str):
-    model = genai.GenerativeModel('gemini-1.5-flash')
     prompt = f"{SYSTEM_PROMPT_AIDS}\n\n用户输入的内容：{content}\n\n请为这个内容生成记忆辅助工具."
 
     try:
-        response = await model.generate_content_async(prompt)
-        # print("Gemini aids response:", response.text)
-        parsed_response = parse_gemini_response(response.text)
-        return parsed_response
+        if settings.GEMINI_BASE_URL != "https://generativelanguage.googleapis.com":
+            # 使用代理调用
+            response_text = await call_gemini_via_proxy(prompt)
+        else:
+            # 直接使用SDK调用
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = await model.generate_content_async(prompt)
+            response_text = response.text
+        
+        if response_text:
+            # print("Gemini aids response:", response_text)
+            parsed_response = parse_gemini_response(response_text)
+            return parsed_response
+        else:
+            return None
     except Exception as e:
         print(f"Error calling Gemini API for aids: {e}")
         return None
@@ -161,7 +248,6 @@ async def generate_image(content: str, context: str = ""):
     Generate an actual image based on the visual association content using Google Imagen
     """
     # First, generate a detailed prompt using Gemini
-    model = genai.GenerativeModel('gemini-1.5-flash')
     prompt_generation = f"""你是一个专业的图像生成提示词专家。请根据以下视觉联想内容，生成一个详细的、适合AI图像生成的英文提示词。
 
 视觉联想内容：{content}
@@ -179,25 +265,63 @@ async def generate_image(content: str, context: str = ""):
 
     try:
         # Generate the prompt
-        prompt_response = await model.generate_content_async(prompt_generation)
-        image_prompt = prompt_response.text.strip()
+        if settings.GEMINI_BASE_URL != "https://generativelanguage.googleapis.com":
+            # 使用代理调用
+            image_prompt = await call_gemini_via_proxy(prompt_generation)
+        else:
+            # 直接使用SDK调用
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            prompt_response = await model.generate_content_async(prompt_generation)
+            image_prompt = prompt_response.text
+        
+        if image_prompt:
+            image_prompt = image_prompt.strip()
+        else:
+            return None
         
         try:
-            # Try to generate the actual image using Google Imagen
-            generation_model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
-            response = generation_model.generate_images(
-                prompt=image_prompt,
-                number_of_images=1,
-                aspect_ratio="1:1",
-                add_watermark=False,
-            )
-            
-            # Get the generated image
-            generated_image = response.images[0]
-            
-            # Convert image to base64
-            image_bytes = generated_image._image_bytes
-            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+            # Try to generate the actual image using Google Gen AI SDK
+            try:
+                # Use new Google Gen AI SDK
+                client = google_genai.Client(vertexai=True)
+                response = client.models.generate_images(
+                    model="imagen-3.0-generate-002",
+                    prompt=image_prompt,
+                    config=types.GenerateImagesConfig(
+                        number_of_images=1,
+                        include_rai_reason=True,
+                        output_mime_type='image/jpeg'
+                    )
+                )
+                
+                # Get the generated image
+                generated_image = response.generated_images[0]
+                
+                # The generated_image.image is a google.genai.types.Image object with image_bytes attribute
+                if hasattr(generated_image, 'image') and hasattr(generated_image.image, 'image_bytes'):
+                    image_bytes = generated_image.image.image_bytes
+                    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                elif hasattr(generated_image, 'image_bytes'):
+                    image_bytes = generated_image.image_bytes
+                    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                else:
+                    raise Exception(f"Unknown image object structure: {type(generated_image)}, attributes: {dir(generated_image)}")
+                
+            except (NameError, AttributeError, ImportError) as fallback_error:
+                print(f"Falling back to legacy Vertex AI API: {fallback_error}")
+                # Fallback to old API
+                generation_model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
+                response = generation_model.generate_images(
+                    prompt=image_prompt,
+                    number_of_images=1,
+                    aspect_ratio="1:1",
+                    add_watermark=False,
+                )
+                
+                # Get the generated image
+                generated_image = response.images[0]
+                image_bytes = generated_image._image_bytes
+                image_base64 = base64.b64encode(image_bytes).decode('utf-8')
             
             return {
                 "image_url": None,  # Imagen doesn't provide URLs, only image data
@@ -206,7 +330,16 @@ async def generate_image(content: str, context: str = ""):
             }
         except Exception as imagen_error:
             print(f"Imagen generation failed: {imagen_error}")
-            # Return prompt only when image generation fails
+            # Return error information when image generation fails
+            error_message = str(imagen_error)
+            if "429" in error_message or "out of capacity" in error_message:
+                raise Exception("图片生成服务暂时不可用，请稍后重试。Google Imagen服务当前容量不足。")
+            elif "Unable to authenticate" in error_message:
+                raise Exception("图片生成服务认证失败，请联系管理员检查配置。")
+            else:
+                raise Exception(f"图片生成失败：{error_message}")
+            
+            # This code won't be reached due to the raise above, but kept for reference
             return {
                 "image_url": None,
                 "image_base64": None,
@@ -229,9 +362,10 @@ async def generate_audio(content: str, context: str = ""):
     """
     # Check if the content is requesting environmental sounds/effects
     environmental_sounds = [
-        "引擎", "发动机", "马达", "机器", "风声", "雨声", "海浪", "鸟叫", "虫鸣", 
+        "引擎", "发动机", "马达", "机器", "风声", "雨声", "雨滴", "海浪", "鸟叫", "虫鸣", 
         "雷声", "钟声", "警报", "汽笛", "喇叭", "敲击", "摩擦", "滴水", "流水",
-        "脚步", "心跳", "呼吸", "咀嚼", "撕纸", "开门", "关门", "键盘", "鼠标"
+        "脚步", "心跳", "呼吸", "咀嚼", "撕纸", "开门", "关门", "键盘", "鼠标",
+        "轰鸣", "嗡嗡", "咔嚓", "滴答", "呼呼", "哗哗", "叮咚", "嘀嗒"
     ]
     
     is_environmental_sound = any(sound in content for sound in environmental_sounds)
@@ -279,79 +413,24 @@ async def generate_audio(content: str, context: str = ""):
                 "message": "声音特征描述生成失败，使用默认描述"
             }
     
-    # For non-environmental sounds, use the original TTS approach
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    script_generation = f"""你是一个专业的音频脚本专家。请根据以下听觉联想内容，生成一个适合语音合成的中文脚本。
-
-听觉联想内容：{content}
-上下文：{context}
-
-要求：
-1. 生成适合TTS朗读的中文文本
-2. 内容要有助于记忆联想
-3. 语言自然流畅
-4. 长度适中（50-200字）
-5. 只返回脚本文本，不要其他内容
-
-示例格式："想象一下，当你听到轻快的钢琴声时..."
-"""
-
+    # For non-environmental sounds, return development message instead of calling TTS API
     try:
-        # Generate the script
-        script_response = await model.generate_content_async(script_generation)
-        audio_script = script_response.text.strip()
+        # Generate a simple script description without calling the model
+        audio_script = f"听觉联想：{content}"
         
-        try:
-            # Try to generate the actual audio using Google Text-to-Speech
-            client = texttospeech.TextToSpeechClient()
-            
-            # Set the text input to be synthesized
-            synthesis_input = texttospeech.SynthesisInput(text=audio_script)
-            
-            # Build the voice request, select the language code and the voice gender
-            # Using Basic voice for more synthetic/robotic sound instead of natural human voice
-            voice = texttospeech.VoiceSelectionParams(
-                language_code="cmn-CN",
-                name="cmn-CN-Standard-C",  # Using Standard-C for more synthetic sound
-                ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL,  # Neutral gender for more robotic feel
-            )
-            
-            # Select the type of audio file you want returned
-            # Adding effects to make it sound more synthetic
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.MP3,
-                speaking_rate=0.9,  # Slightly slower for more robotic feel
-                pitch=-2.0,  # Lower pitch for synthetic sound
-                volume_gain_db=-3.0  # Slightly quieter
-            )
-            
-            # Perform the text-to-speech request
-            response = client.synthesize_speech(
-                input=synthesis_input, voice=voice, audio_config=audio_config
-            )
-            
-            # Convert audio to base64
-            audio_base64 = base64.b64encode(response.audio_content).decode('utf-8')
-            
-            return {
-                "audio_base64": f"data:audio/mp3;base64,{audio_base64}",
-                "script": audio_script,
-                "duration": len(audio_script) * 0.1  # Rough estimate
-            }
-        except Exception as tts_error:
-            print(f"Text-to-Speech generation failed: {tts_error}")
-            # Return script only when audio generation fails
-            return {
-                "audio_base64": None,
-                "script": audio_script,  # Still return the generated script
-                "duration": len(audio_script) * 0.1
-            }
+        return {
+            "audio_base64": None,
+            "script": audio_script,
+            "duration": 3.0,  # Default duration
+            "message": "语音合成功能正在开发中"
+        }
         
     except Exception as e:
         print(f"Error generating audio script: {e}")
         return {
             "audio_base64": None,
-            "script": f"音频脚本：{content}的听觉联想描述",  # Fallback script
-            "duration": 0
+            "script": f"听觉联想：{content}",
+            "duration": 3.0,
+            "message": "语音合成功能正在开发中"
         }
 

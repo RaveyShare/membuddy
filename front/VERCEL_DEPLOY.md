@@ -2,7 +2,8 @@
 
 ## 前置条件
 
-- 后端 API 已部署到 run.claw.cloud 并获得访问地址
+- 后端 API 已部署到阿里云并获得访问地址
+- Nginx 代理已部署到 Claw Cloud Run 并配置 Gemini API 代理
 - GitHub 仓库已推送最新代码
 - Vercel 账号已连接 GitHub
 
@@ -20,10 +21,10 @@
 在 Vercel 项目设置中添加以下环境变量：
 
 ```
-NEXT_PUBLIC_API_URL=https://your-claw-cloud-domain.com/api
+NEXT_PUBLIC_API_URL=https://your-aliyun-backend-domain.com/api
 ```
 
-**重要：** 将 `your-claw-cloud-domain.com` 替换为你在 run.claw.cloud 获得的实际域名。
+**重要：** 将 `your-aliyun-backend-domain.com` 替换为你在阿里云部署的后端服务实际域名。
 
 ### 3. 部署配置
 
@@ -48,7 +49,7 @@ Vercel 会自动检测到 `vercel.json` 配置文件，包含以下设置：
 
 ### 生产环境
 
-部署到 Vercel 时，需要设置 `NEXT_PUBLIC_API_URL` 环境变量指向你的 run.claw.cloud API 地址。
+部署到 Vercel 时，需要设置 `NEXT_PUBLIC_API_URL` 环境变量指向你的阿里云后端 API 地址。
 
 ## 更新部署
 
@@ -59,8 +60,9 @@ Vercel 会自动检测到 `vercel.json` 配置文件，包含以下设置：
 ### API 连接问题
 
 1. 检查 `NEXT_PUBLIC_API_URL` 环境变量是否正确设置
-2. 确认 run.claw.cloud 的 API 服务正在运行
-3. 检查 CORS 配置是否允许 Vercel 域名访问
+2. 确认阿里云的后端 API 服务正在运行
+3. 确认 Claw Cloud Run 的 Nginx 代理服务正在运行
+4. 检查后端 CORS 配置是否允许 Vercel 域名访问
 
 ### 构建失败
 

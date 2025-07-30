@@ -1,0 +1,12 @@
+# Nginx runtime files
+html/
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.log

@@ -82,9 +82,9 @@ class SensoryAssociation(BaseModel):
     content: Union[List[VisualAssociation], List[AuditoryAssociation], List[TactileAssociation]]
 
 class MemoryAids(BaseModel):
-    mindMap: MindMapNode
-    mnemonics: List[Mnemonic]
-    sensoryAssociations: List[SensoryAssociation]
+    mindMap: Optional[MindMapNode] = None
+    mnemonics: List[Mnemonic] = []
+    sensoryAssociations: List[SensoryAssociation] = []
 
 # --- Review Schedule Schemas ---
 class ReviewScheduleBase(BaseModel):
