@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  membuddy-global:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: membuddy-global
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - REGION=global
+      - LANGUAGE=en-US
+    env_file:
+      - ./back/.env
+    volumes:
+      - ./back/service-account-key.json:/app/service-account-key.json:ro
+      - ./back/logs:/app/logs
+    networks:
+      - membuddy-global-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx-global:
+    image: registry.cn-hangzhou.aliyuncs.com/library/nginx:alpine
+    container_name: membuddy-global-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/global.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - membuddy-global
+    networks:
+      - membuddy-global-network
+
+  redis-global:
+    image: registry.cn-hangzhou.aliyuncs.com/library/redis:7-alpine
+    container_name: membuddy-global-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-global-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - membuddy-global-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis-global-data:
+    driver: local
+
+networks:
+  membuddy-global-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

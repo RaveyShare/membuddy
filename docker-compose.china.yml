@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  membuddy-china:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: membuddy-china
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - REGION=china
+      - LANGUAGE=zh-CN
+    env_file:
+      - ./back/.env
+    volumes:
+      - ./back/service-account-key.json:/app/service-account-key.json:ro
+      - ./back/logs:/app/logs
+    networks:
+      - membuddy-china-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx-china:
+    image: registry.cn-hangzhou.aliyuncs.com/library/nginx:alpine
+    container_name: membuddy-china-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/china.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - membuddy-china
+    networks:
+      - membuddy-china-network
+
+  redis-china:
+    image: registry.cn-hangzhou.aliyuncs.com/library/redis:7-alpine
+    container_name: membuddy-china-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-china-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - membuddy-china-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis-china-data:
+    driver: local
+
+networks:
+  membuddy-china-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

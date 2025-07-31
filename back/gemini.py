@@ -1,3 +1,4 @@
+# 兼容性导入 - 保持向后兼容
 import google.generativeai as genai
 from config import settings
 import json
@@ -16,6 +17,9 @@ try:
 except ImportError:
     # Fallback to old API if new one is not available
     from vertexai.preview.vision_models import ImageGenerationModel
+
+# 新的AI管理器
+from ai_manager import ai_manager, generate_memory_aids as ai_generate_memory_aids
 
 # 配置Gemini API
 if settings.GEMINI_BASE_URL != "https://generativelanguage.googleapis.com":
@@ -221,9 +225,18 @@ async def call_gemini_via_proxy(prompt: str, model_name: str = "gemini-1.5-flash
         return None
 
 async def generate_memory_aids(content: str):
-    prompt = f"{SYSTEM_PROMPT_AIDS}\n\n用户输入的内容：{content}\n\n请为这个内容生成记忆辅助工具."
-
+    """生成记忆辅助内容 - 使用新的AI管理器"""
     try:
+        # 优先使用新的AI管理器
+        region = os.getenv("REGION", "global")
+        if region in ["china", "global"]:
+            result = ai_generate_memory_aids(content)
+            if result:
+                return result
+        
+        # 回退到原有的Gemini实现（向后兼容）
+        prompt = f"{SYSTEM_PROMPT_AIDS}\n\n用户输入的内容：{content}\n\n请为这个内容生成记忆辅助工具."
+        
         if settings.GEMINI_BASE_URL != "https://generativelanguage.googleapis.com":
             # 使用代理调用
             response_text = await call_gemini_via_proxy(prompt)
@@ -240,7 +253,7 @@ async def generate_memory_aids(content: str):
         else:
             return None
     except Exception as e:
-        print(f"Error calling Gemini API for aids: {e}")
+        print(f"Error calling AI API for aids: {e}")
         return None
 
 async def generate_image(content: str, context: str = ""):
