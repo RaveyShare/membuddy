@@ -17,7 +17,7 @@ class GeminiProvider:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
         self.base_url = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com")
-        self.model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+        self.model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         
         if self.base_url != "https://generativelanguage.googleapis.com":
             # Using proxy
@@ -31,6 +31,19 @@ class GeminiProvider:
         """Generate memory aids content"""
         prompt = f"""
 You are MemBuddy, an AI assistant that helps users with memory techniques. Based on the following content, generate mind maps, mnemonics, and sensory associations.
+
+Generate three types of mnemonics: Rhyme Memory Method, Core Content Summary, Memory Palace Encoding.
+
+For Core Content Summary, please follow these requirements:
+1. Extract core arguments: Summarize the most core and overall thoughts or arguments of the text in one or two sentences
+2. Structured breakdown: Break down the text content into several key principles, viewpoints, or main parts
+3. Distinguish viewpoints from examples: For each point, clearly divide it into two levels: concept/viewpoint and example/practice
+
+For Memory Palace Encoding, please follow these requirements:
+1. Set theme: As a memory master, create an imaginative and unified "memory palace" theme for all key points from the core content summary
+2. Create scenes: Precisely map each key principle from the summary to a specific "room", "station", "scene" or "step" in the theme
+3. Inject vivid details: Use strong visual, action and sensory language to create concrete, vivid images that symbolically represent corresponding principles and examples
+4. Clear connection points: End each scene description with a clear "memory anchor" to firmly connect the vivid image with abstract concepts
 
 User input: {content}
 
@@ -58,18 +71,31 @@ Please output strictly in the following JSON format without any additional conte
       "content": "Catchy rhyme for memory",
       "type": "rhyme"
     }},
-    {{
-      "id": "acronym",
-      "title": "Acronym Method",
-      "content": "Acronym abbreviation",
-      "type": "acronym",
-      "explanation": "Explanation of acronym meaning"
+    {{"id": "summary",
+      "title": "Core Content Summary",
+      "content": "Complete summary description based on core arguments and key principles",
+      "type": "summary",
+      "corePoint": "Core argument summary",
+      "keyPrinciples": [
+        {{
+          "concept": "Concept/Viewpoint",
+          "example": "Example/Practice"
+        }}
+      ]
     }},
     {{
-      "id": "story",
-      "title": "Story Association Method",
-      "content": "Vivid and interesting story",
-      "type": "story"
+      "id": "palace",
+      "title": "Memory Palace Encoding",
+      "content": "Complete memory palace description based on theme and scenes",
+      "type": "palace",
+      "theme": "Memory palace theme",
+      "scenes": [
+        {{
+          "principle": "Corresponding principle",
+          "scene": "Vivid scene description",
+          "anchor": "Memory anchor"
+        }}
+      ]
     }}
   ],
   "sensoryAssociations": [
@@ -120,21 +146,37 @@ Please output strictly in the following JSON format without any additional conte
     
     def _call_direct_api(self, prompt: str) -> Dict[str, Any]:
         """Call Gemini API directly"""
+        print(f"[Gemini Direct API] Request - Model: {self.model}")
+        print(f"[Gemini Direct API] Request - Prompt length: {len(prompt)} characters")
+        print(f"[Gemini Direct API] Request - Prompt preview: {prompt[:200]}...")
+        
         model = genai.GenerativeModel(self.model)
         response = model.generate_content(prompt)
         
+        print(f"[Gemini Direct API] Response - Has text: {bool(response.text)}")
         if response.text:
+            print(f"[Gemini Direct API] Response - Text length: {len(response.text)} characters")
+            print(f"[Gemini Direct API] Response - Text preview: {response.text[:200]}...")
             try:
-                return json.loads(response.text)
-            except json.JSONDecodeError:
+                # Clean the text by removing ```json and ``` markers
+                import re
+                cleaned_text = re.sub(r'```json\n?|```', '', response.text)
+                print(f"[Gemini Direct API] Response - Cleaned text preview: {cleaned_text[:200]}...")
+                parsed_response = json.loads(cleaned_text)
+                print(f"[Gemini Direct API] Response - Successfully parsed JSON")
+                return parsed_response
+            except json.JSONDecodeError as e:
+                print(f"[Gemini Direct API] Response - JSON parse error: {e}")
+                print(f"[Gemini Direct API] Response - Raw text: {response.text}")
                 return self._get_default_response(prompt)
         else:
+            print(f"[Gemini Direct API] Response - No text in response")
             raise Exception("No response from Gemini API")
     
     def _call_via_proxy(self, prompt: str) -> Dict[str, Any]:
         """Call Gemini API via proxy"""
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.api_key[:10]}...",  # 隐藏完整API密钥
             "Content-Type": "application/json"
         }
         
@@ -150,22 +192,42 @@ Please output strictly in the following JSON format without any additional conte
             "max_tokens": 2000
         }
         
+        print(f"[Gemini Proxy API] Request - URL: {self.base_url}/v1/chat/completions")
+        print(f"[Gemini Proxy API] Request - Model: {self.model}")
+        print(f"[Gemini Proxy API] Request - Prompt length: {len(prompt)} characters")
+        print(f"[Gemini Proxy API] Request - Prompt preview: {prompt[:200]}...")
+        print(f"[Gemini Proxy API] Request - Temperature: {data['temperature']}, Max tokens: {data['max_tokens']}")
+        
         response = requests.post(
             f"{self.base_url}/v1/chat/completions",
-            headers=headers,
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
             json=data,
             timeout=30
         )
         response.raise_for_status()
         
         result = response.json()
+        print(f"[Gemini Proxy API] Response - Status: {response.status_code}")
+        print(f"[Gemini Proxy API] Response - Has choices: {'choices' in result}")
+        
         if "choices" in result and len(result["choices"]) > 0:
             content = result["choices"][0]["message"]["content"]
+            print(f"[Gemini Proxy API] Response - Content length: {len(content)} characters")
+            print(f"[Gemini Proxy API] Response - Content preview: {content[:200]}...")
             try:
-                return json.loads(content)
-            except json.JSONDecodeError:
+                # Clean the text by removing ```json and ``` markers
+                import re
+                cleaned_text = re.sub(r'```json\n?|```', '', content)
+                print(f"[Gemini Proxy API] Response - Cleaned text preview: {cleaned_text[:200]}...")
+                parsed_response = json.loads(cleaned_text)
+                print(f"[Gemini Proxy API] Response - Successfully parsed JSON")
+                return parsed_response
+            except json.JSONDecodeError as e:
+                print(f"[Gemini Proxy API] Response - JSON parse error: {e}")
+                print(f"[Gemini Proxy API] Response - Raw content: {content}")
                 return self._get_default_response(content)
         else:
+            print(f"[Gemini Proxy API] Response - Unexpected format: {result}")
             raise Exception(f"Unexpected response format: {result}")
     
     def _get_default_response(self, original_content: str) -> Dict[str, Any]:

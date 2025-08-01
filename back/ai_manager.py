@@ -5,6 +5,11 @@
 import os
 from typing import Dict, Any, Optional
 from enum import Enum
+import logging
+import json
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 class Region(Enum):
     """支持的区域"""
@@ -51,8 +56,28 @@ class AIManager:
     
     def generate_memory_aids(self, content: str) -> Dict[str, Any]:
         """生成记忆辅助内容"""
-        provider = self.get_ai_provider()
-        return provider.generate_memory_aids(content)
+        logger.info(f"[AI Manager] ===== GENERATE MEMORY AIDS START =====")
+        logger.info(f"[AI Manager] Region: {self.region.value}")
+        logger.info(f"[AI Manager] Language: {self.language}")
+        logger.info(f"[AI Manager] Input content: {content}")
+        
+        try:
+            provider = self.get_ai_provider()
+            logger.info(f"[AI Manager] Using provider: {type(provider).__name__}")
+            
+            result = provider.generate_memory_aids(content)
+            
+            if result:
+                logger.info(f"[AI Manager] Provider returned result: {json.dumps(result, ensure_ascii=False, indent=2)}")
+            else:
+                logger.warning(f"[AI Manager] Provider returned no result")
+            
+            logger.info(f"[AI Manager] ===== GENERATE MEMORY AIDS END =====")
+            return result
+        except Exception as e:
+            logger.error(f"[AI Manager] Exception occurred: {str(e)}", exc_info=True)
+            logger.info(f"[AI Manager] ===== GENERATE MEMORY AIDS END =====")
+            return None
     
     def synthesize_speech(self, text: str, voice: str = None) -> bytes:
         """合成语音"""

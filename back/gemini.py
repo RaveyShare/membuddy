@@ -11,6 +11,10 @@ import uuid
 import os
 from google.cloud import texttospeech
 import vertexai
+import logging
+
+# 配置日志
+logger = logging.getLogger(__name__)
 try:
     from google import genai as google_genai
     from google.genai import types
@@ -73,30 +77,48 @@ except Exception as e:
 
 SYSTEM_PROMPT_AIDS = """你是小杏仁记忆搭子，负责帮助用户记忆。你会根据用户输入的内容，生成思维导图、记忆口诀和感官联想。
 
-记忆口诀生成三种类型：顺口溜记忆法、首字母记忆法、故事联想法。
+记忆口诀生成三种类型：顺口溜记忆法、核心内容总结、记忆宫殿编码。
 感官联想也分为三类：视觉联想、听觉联想和触觉联想。
 
-注意严格按照如下JSON格式输出，不需要任何多余的内容，只需要在对应的位置填入 content：
+对于核心内容总结，请按以下要求：
+1. 提炼核心论点：用一两句话总结文本最核心、最总体的思想或论点，填入 corePoint 字段
+2. 结构化分解：将文本内容分解为几个关键的原则、观点或主要部分，填入 keyPrinciples 数组
+3. 区分观点与例子：对于每一点，都必须清晰地分为观点/概念和例子/做法两个层面
+4. 生成总结描述：基于核心论点和关键原则，在 content 字段中生成一段完整的、连贯的总结性描述，将核心论点和各个关键原则有机地整合成一段易于理解和记忆的文字
+
+对于记忆宫殿编码，请按以下要求：
+1. 设定主题：扮演记忆大师的角色，为核心内容总结的所有要点创建一个富有想象力的、统一的"记忆宫殿"主题，填入 theme 字段
+2. 创建场景：将总结中的每一个关键原则，精确地映射到主题中的一个具体的"房间"、"站点"、"场景"或"步骤"，填入 scenes 数组
+3. 注入生动细节：使用强烈的视觉、动作和感官语言，创造具体、生动的画面来象征性地代表对应的原则和例子
+4. 明确连接点：在每个场景描述的结尾，用明确的"记忆锚点"来收尾，将生动的画面与抽象概念牢固联系
+5. 生成宫殿描述：基于记忆宫殿主题和各个场景，在 content 字段中生成一段完整的、引人入胜的记忆宫殿整体描述，将主题和各个场景串联成一个连贯的记忆故事
+
+注意严格按照如下JSON格式输出，不需要任何多余的内容。重要提醒：
+- 必须将所有 [请在此处...] 占位符替换为实际生成的内容
+- content 字段必须包含完整的、有意义的描述文字，不能为空
+- corePoint、theme 等字段也必须填入具体内容，不能保留占位符
+
+JSON格式如下：
 
 {
   "mindMap": {
     "id": "root",
-    "label": "content" 或 "记忆主题",
+    "label": "根据用户输入内容生成的主题标题",
     "children": [
       {
         "id": "part1",
-        "label": "content",
+        "label": "第一个主要部分的标题",
         "children": [
-          { "id": "leaf1", "label": "content" },
-          { "id": "leaf2", "label": "content" }
+          { "id": "leaf1", "label": "第一个子要点" },
+          { "id": "leaf2", "label": "第二个子要点" }
         ]
       },
       {
         "id": "part2",
-        "label": "content",
+        "label": "第二个主要部分的标题",
         "children": [
-          { "id": "leaf3", "label": "content" },
-          { "id": "leaf4", "label": "content" }
+          { "id": "leaf3", "label": "第三个子要点" },
+          { "id": "leaf4", "label": "第四个子要点" }
         ]
       }
     ]
@@ -105,21 +127,35 @@ SYSTEM_PROMPT_AIDS = """你是小杏仁记忆搭子，负责帮助用户记忆�
     {
       "id": "rhyme",
       "title": "顺口溜记忆法",
-      "content": "content，顺口溜助记。",
+      "content": "根据用户内容生成的顺口溜文本",
       "type": "rhyme"
     },
     {
-      "id": "acronym",
-      "title": "首字法",
-      "content": "",
-      "type": "acronym",
-      "explanation": "利用首字母记忆"
+      "id": "summary",
+      "title": "核心内容总结",
+      "content": "基于核心论点和关键原则的完整总结描述",
+      "type": "summary",
+      "corePoint": "核心论点内容",
+      "keyPrinciples": [
+        {
+          "concept": "观点或概念",
+          "example": "具体例子或做法"
+        }
+      ]
     },
     {
-      "id": "story",
-      "title": "故事联想法",
-      "content": "想象一个故事串联：",
-      "type": "story"
+      "id": "palace",
+      "title": "记忆宫殿编码",
+      "content": "基于记忆宫殿主题和场景的整体描述",
+      "type": "palace",
+      "theme": "记忆宫殿主题",
+      "scenes": [
+        {
+          "principle": "对应的原则",
+          "scene": "生动的场景描述",
+          "anchor": "记忆锚点"
+        }
+      ]
     }
   ],
   "sensoryAssociations": [
@@ -129,16 +165,16 @@ SYSTEM_PROMPT_AIDS = """你是小杏仁记忆搭子，负责帮助用户记忆�
       "type": "visual",
       "content": [
         {
-          "dynasty": "content",
+          "dynasty": "第一个视觉要素的名称",
           "image": "🌟",
           "color": "#fbbf24",
-          "association": ""
+          "association": "具体的视觉联想描述"
         },
         {
-          "dynasty": "content",
+          "dynasty": "第二个视觉要素的名称",
           "image": "🔵",
           "color": "#06b6d4",
-          "association": ""
+          "association": "具体的视觉联想描述"
         }
       ]
     },
@@ -147,8 +183,8 @@ SYSTEM_PROMPT_AIDS = """你是小杏仁记忆搭子，负责帮助用户记忆�
       "title": "听觉联想",
       "type": "auditory",
       "content": [
-        { "dynasty": "content", "sound": "叮咚声", "rhythm": "节奏感" },
-        { "dynasty": "content", "sound": "风声", "rhythm": "轻快" }
+        { "dynasty": "第一个听觉要素的名称", "sound": "叮咚声", "rhythm": "节奏感" },
+        { "dynasty": "第二个听觉要素的名称", "sound": "风声", "rhythm": "轻快" }
       ]
     },
     {
@@ -156,12 +192,14 @@ SYSTEM_PROMPT_AIDS = """你是小杏仁记忆搭子，负责帮助用户记忆�
       "title": "触觉联想",
       "type": "tactile",
       "content": [
-        { "dynasty": "content", "texture": "柔软", "feeling": "温暖" },
-        { "dynasty": "content", "texture": "坚硬", "feeling": "冰凉" }
+        { "dynasty": "第一个触觉要素的名称", "texture": "柔软", "feeling": "温暖" },
+        { "dynasty": "第二个触觉要素的名称", "texture": "坚硬", "feeling": "冰凉" }
       ]
     }
   ]
 }
+
+重要：以上JSON中的所有示例文本（如"基于核心论点和关键原则的完整总结描述"、"核心论点内容"等）都必须替换为根据用户输入内容实际生成的具体文字，绝对不能保留示例文本本身！
 """
 
 # Although we ask Gemini for the schedule, it's more reliable to calculate it in code.
@@ -188,12 +226,55 @@ def parse_gemini_response(text: str):
     try:
         # Clean the text by removing ```json and ``` markers
         cleaned_text = re.sub(r'```json\n?|```', '', text)
-        return json.loads(cleaned_text)
+        parsed_data = json.loads(cleaned_text)
+        
+        # Validate and fix mnemonics structure
+        if 'mnemonics' in parsed_data and isinstance(parsed_data['mnemonics'], list):
+            for i, mnemonic in enumerate(parsed_data['mnemonics']):
+                if isinstance(mnemonic, dict):
+                    # Check if type field is missing and add it based on id
+                    if 'type' not in mnemonic:
+                        if 'id' in mnemonic:
+                            mnemonic['type'] = mnemonic['id']
+                            logger.warning(f"[Parse Response] Added missing 'type' field to mnemonic {i}: {mnemonic['id']}")
+                        else:
+                            # Default type based on position
+                            default_types = ['rhyme', 'summary', 'palace']
+                            if i < len(default_types):
+                                mnemonic['type'] = default_types[i]
+                                logger.warning(f"[Parse Response] Added default 'type' field to mnemonic {i}: {default_types[i]}")
+                            else:
+                                mnemonic['type'] = 'unknown'
+                                logger.warning(f"[Parse Response] Added fallback 'type' field to mnemonic {i}: unknown")
+                    
+                    # Check if content field is a list and convert to string
+                    if 'content' in mnemonic and isinstance(mnemonic['content'], list):
+                        # Convert list content to string representation
+                        if mnemonic['content']:
+                            # Try to extract meaningful text from the list
+                            content_parts = []
+                            for item in mnemonic['content']:
+                                if isinstance(item, dict):
+                                    # Extract text values from dict
+                                    text_values = [str(v) for v in item.values() if isinstance(v, (str, int, float))]
+                                    if text_values:
+                                        content_parts.extend(text_values)
+                                elif isinstance(item, str):
+                                    content_parts.append(item)
+                                else:
+                                    content_parts.append(str(item))
+                            mnemonic['content'] = ' '.join(content_parts) if content_parts else '记忆内容'
+                        else:
+                            mnemonic['content'] = '记忆内容'
+                        logger.warning(f"[Parse Response] Converted list content to string for mnemonic {i}: {mnemonic.get('type', 'unknown')}")
+        
+        logger.info(f"[Parse Response] Successfully parsed and validated response")
+        return parsed_data
     except Exception as e:
-        print(f"Error parsing Gemini response: {e}")
+        logger.error(f"[Parse Response] Error parsing Gemini response: {e}")
         return None
 
-async def call_gemini_via_proxy(prompt: str, model_name: str = "gemini-1.5-flash"):
+async def call_gemini_via_proxy(prompt: str, model_name: str = "gemini-2.5-flash-002"):
     """通过代理调用Gemini API"""
     try:
         url = f"{settings.GEMINI_BASE_URL}/v1beta/models/{model_name}:generateContent"
@@ -210,18 +291,37 @@ async def call_gemini_via_proxy(prompt: str, model_name: str = "gemini-1.5-flash
             }]
         }
         
+        # 详细的请求日志
+        logger.info(f"[Gemini Proxy] ===== REQUEST START =====")
+        logger.info(f"[Gemini Proxy] URL: {url}")
+        logger.info(f"[Gemini Proxy] Model: {model_name}")
+        logger.info(f"[Gemini Proxy] Headers: {dict(headers)}")
+        logger.info(f"[Gemini Proxy] Payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
+        logger.info(f"[Gemini Proxy] ===== REQUEST END =====")
+        
         response = requests.post(url, headers=headers, json=payload, timeout=60)
+        
+        # 详细的响应日志
+        logger.info(f"[Gemini Proxy] ===== RESPONSE START =====")
+        logger.info(f"[Gemini Proxy] Status Code: {response.status_code}")
+        logger.info(f"[Gemini Proxy] Response Headers: {dict(response.headers)}")
+        logger.info(f"[Gemini Proxy] Raw Response Text: {response.text}")
+        logger.info(f"[Gemini Proxy] ===== RESPONSE END =====")
+        
         response.raise_for_status()
         
         result = response.json()
+        
         if "candidates" in result and len(result["candidates"]) > 0:
-            return result["candidates"][0]["content"]["parts"][0]["text"]
+            response_text = result["candidates"][0]["content"]["parts"][0]["text"]
+            logger.info(f"[Gemini Proxy] Successfully extracted response text: {len(response_text)} characters")
+            return response_text
         else:
-            print(f"Unexpected Gemini response format: {result}")
+            logger.error(f"[Gemini Proxy] Unexpected response format: {result}")
             return None
             
     except Exception as e:
-        print(f"Error calling Gemini via proxy: {e}")
+        print(f"[Gemini Proxy Legacy] Error: {e}")
         return None
 
 async def generate_memory_aids(content: str):
@@ -229,31 +329,56 @@ async def generate_memory_aids(content: str):
     try:
         # 优先使用新的AI管理器
         region = os.getenv("REGION", "global")
+        logger.info(f"[Generate Memory Aids] ===== FUNCTION START =====")
+        logger.info(f"[Generate Memory Aids] Region: {region}")
+        logger.info(f"[Generate Memory Aids] Input content: {content}")
+        
         if region in ["china", "global"]:
+            logger.info(f"[Generate Memory Aids] Trying AI manager first...")
             result = ai_generate_memory_aids(content)
             if result:
+                logger.info(f"[Generate Memory Aids] AI manager returned result: {json.dumps(result, ensure_ascii=False, indent=2)}")
                 return result
+            else:
+                logger.info(f"[Generate Memory Aids] AI manager returned no result, falling back to Gemini")
         
         # 回退到原有的Gemini实现（向后兼容）
         prompt = f"{SYSTEM_PROMPT_AIDS}\n\n用户输入的内容：{content}\n\n请为这个内容生成记忆辅助工具."
         
+        logger.info(f"[Generate Memory Aids] Using fallback Gemini implementation")
+        logger.info(f"[Generate Memory Aids] Full prompt: {prompt}")
+        
         if settings.GEMINI_BASE_URL != "https://generativelanguage.googleapis.com":
             # 使用代理调用
+            logger.info(f"[Generate Memory Aids] Using Gemini proxy: {settings.GEMINI_BASE_URL}")
             response_text = await call_gemini_via_proxy(prompt)
         else:
             # 直接使用SDK调用
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            logger.info(f"[Generate Memory Aids] Using direct Gemini SDK")
+            logger.info(f"[Generate Memory Aids] Creating GenerativeModel with model: gemini-2.5-flash")
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            logger.info(f"[Generate Memory Aids] Calling generate_content_async...")
             response = await model.generate_content_async(prompt)
             response_text = response.text
+            logger.info(f"[Generate Memory Aids] SDK Response received: {response_text}")
         
         if response_text:
-            # print("Gemini aids response:", response_text)
+            logger.info(f"[Generate Memory Aids] Response text received, length: {len(response_text)} characters")
+            logger.info(f"[Generate Memory Aids] Parsing JSON response...")
             parsed_response = parse_gemini_response(response_text)
+            if parsed_response:
+                logger.info(f"[Generate Memory Aids] Successfully parsed response: {json.dumps(parsed_response, ensure_ascii=False, indent=2)}")
+            else:
+                logger.error(f"[Generate Memory Aids] Failed to parse response. Raw text: {response_text}")
+            logger.info(f"[Generate Memory Aids] ===== FUNCTION END =====")
             return parsed_response
         else:
+            logger.error(f"[Generate Memory Aids] No response text received")
+            logger.info(f"[Generate Memory Aids] ===== FUNCTION END =====")
             return None
     except Exception as e:
-        print(f"Error calling AI API for aids: {e}")
+        logger.error(f"[Generate Memory Aids] Exception occurred: {str(e)}", exc_info=True)
+        logger.info(f"[Generate Memory Aids] ===== FUNCTION END =====")
         return None
 
 async def generate_image(content: str, context: str = ""):
@@ -283,7 +408,7 @@ async def generate_image(content: str, context: str = ""):
             image_prompt = await call_gemini_via_proxy(prompt_generation)
         else:
             # 直接使用SDK调用
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash-002')
             prompt_response = await model.generate_content_async(prompt_generation)
             image_prompt = prompt_response.text
         
@@ -386,7 +511,7 @@ async def generate_audio(content: str, context: str = ""):
     if is_environmental_sound:
         # For environmental sounds, generate a synthetic sound effect description
         # and return a placeholder for actual sound generation
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash-002')
         sound_description = f"""你是一个专业的声音效果描述专家。请根据以下声音内容，生成一个详细的声音特征描述。
 
 声音内容：{content}

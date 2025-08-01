@@ -12,12 +12,27 @@ export interface MindMapNode {
   children?: MindMapNode[];
 }
 
+export interface KeyPrinciple {
+  concept: string;
+  example: string;
+}
+
+export interface MemoryScene {
+  principle: string;
+  scene: string;
+  anchor: string;
+}
+
 export interface Mnemonic {
   id: string;
   title: string;
   content: string;
   type: string;
   explanation?: string;
+  corePoint?: string;
+  keyPrinciples?: KeyPrinciple[];
+  theme?: string;
+  scenes?: MemoryScene[];
 }
 
 export interface VisualAssociation {

@@ -246,7 +246,7 @@ export const api = {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ content }),
-    }, 15000)
+    }, 60000)
     return handleResponse<MemoryAids>(response)
   },
 

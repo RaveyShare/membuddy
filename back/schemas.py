@@ -52,12 +52,25 @@ class MindMapNode(BaseModel):
 
 MindMapNode.model_rebuild()
 
+class KeyPrinciple(BaseModel):
+    concept: str
+    example: str
+
+class MemoryScene(BaseModel):
+    principle: str
+    scene: str
+    anchor: str
+
 class Mnemonic(BaseModel):
     id: str
     title: str
     content: str
     type: str
     explanation: Optional[str] = None
+    corePoint: Optional[str] = None
+    keyPrinciples: Optional[List[KeyPrinciple]] = None
+    theme: Optional[str] = None
+    scenes: Optional[List[MemoryScene]] = None
 
 class VisualAssociation(BaseModel):
     dynasty: str

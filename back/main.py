@@ -20,8 +20,20 @@ import schemas
 from gemini import generate_memory_aids, generate_review_schedule_from_ebbinghaus, generate_image, generate_audio
 
 # --- Logging Configuration ---
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
+
+# 设置第三方库的日志级别
+logging.getLogger("httpx").setLevel(logging.DEBUG)
+logging.getLogger("httpcore").setLevel(logging.DEBUG)
+logging.getLogger("requests").setLevel(logging.DEBUG)
+logging.getLogger("urllib3").setLevel(logging.DEBUG)
+logging.getLogger("supabase").setLevel(logging.DEBUG)
+logging.getLogger("postgrest").setLevel(logging.DEBUG)
 
 app = FastAPI(title="MemBuddy API")
 
