@@ -57,7 +57,21 @@ export default function MemoryLibraryPage() {
         setMemoryItems(items)
       } catch (error) {
         console.error("Failed to fetch memory items:", error)
-        toast({ title: "加载失败", variant: "destructive", open: true })
+        const errorMessage = error instanceof Error ? error.message : ''
+        
+        if (errorMessage.includes('超时') || errorMessage.includes('timeout')) {
+          toast({ 
+            title: "网络连接较慢", 
+            description: "正在努力为您加载记忆内容，请稍等片刻...",
+            open: true 
+          })
+        } else {
+          toast({ 
+            title: "加载中", 
+            description: "记忆内容正在加载，请稍后刷新页面查看",
+            open: true 
+          })
+        }
       } finally {
         setIsLoading(false)
       }

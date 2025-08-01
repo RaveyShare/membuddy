@@ -147,8 +147,26 @@ export default function MemoryItemDetailsPage() {
         setItem(fetchedItem)
       } catch (error) {
         console.error("Failed to fetch memory item:", error)
-        toast({ title: "加载失败", variant: "destructive", open: true })
-        router.push("/memory-library")
+        const errorMessage = error instanceof Error ? error.message : ''
+        
+        if (errorMessage.includes('超时') || errorMessage.includes('timeout')) {
+          toast({ 
+            title: "内容加载中", 
+            description: "记忆内容正在加载，请稍等片刻或刷新页面重试",
+            open: true 
+          })
+        } else {
+          toast({ 
+            title: "正在获取内容", 
+            description: "记忆内容正在加载，请稍后刷新页面查看",
+            open: true 
+          })
+        }
+        
+        // 延迟跳转，给用户时间看到提示
+        setTimeout(() => {
+          router.push("/memory-library")
+        }, 2000)
       } finally {
         setIsLoading(false)
       }
@@ -186,12 +204,22 @@ export default function MemoryItemDetailsPage() {
       })
     } catch (error) {
       console.error("Failed to regenerate memory aids:", error)
-      toast({
-        title: "重新生成失败",
-        description: "无法重新生成记忆辅助工具，请稍后再试",
-        variant: "destructive",
-        open: true,
-      })
+      const errorMessage = error instanceof Error ? error.message : ''
+      
+      // 根据错误类型显示不同的友好提示
+      if (errorMessage.includes('超时') || errorMessage.includes('timeout')) {
+        toast({
+          title: "正在重新生成记忆辅助",
+          description: "AI 正在为您重新生成记忆内容，由于内容较复杂需要更多时间，请稍后刷新页面查看。",
+          open: true,
+        })
+      } else {
+        toast({
+          title: "记忆辅助重新生成中",
+          description: "AI 正在后台重新生成记忆辅助工具，请稍后刷新页面查看完整内容。",
+          open: true,
+        })
+      }
     } finally {
       setIsRegenerating(false)
     }

@@ -76,12 +76,21 @@ export default function Home() {
       setMemoryItems(items.slice(0, 5))
     } catch (error) {
       console.error("Failed to load memory items:", error)
-      toast({
-        title: "加载失败",
-        description: error instanceof Error ? error.message : "无法加载记忆项目，请稍后再试",
-        variant: "destructive",
-        open: true
-      })
+      const errorMessage = error instanceof Error ? error.message : ''
+      
+      if (errorMessage.includes('超时') || errorMessage.includes('timeout')) {
+        toast({
+          title: "网络连接较慢",
+          description: "正在努力为您加载最近的记忆内容，请稍等片刻...",
+          open: true
+        })
+      } else {
+        toast({
+          title: "内容加载中",
+          description: "记忆内容正在加载，请稍后刷新页面查看",
+          open: true
+        })
+      }
     } finally {
       setLoadingMemoryItems(false)
     }
@@ -112,14 +121,23 @@ export default function Home() {
       })
     } catch (error) {
       console.error("Error saving initial memory item:", error)
-      setInputValue(contentToSave) // 如果保存失败，恢复输入框内容
+      setInputValue("") // 清空输入框内容
       setIsLoading(false)
-      toast({
-        title: "保存失败",
-        description: error instanceof Error ? error.message : "无法保存您的项目，请稍后再试。",
-        variant: "destructive",
-        open: true
-      })
+      const errorMessage = error instanceof Error ? error.message : ''
+      
+      if (errorMessage.includes('超时') || errorMessage.includes('timeout')) {
+        toast({
+          title: "正在保存中",
+          description: "您的内容正在后台保存，AI 正在后台生成辅助工具，请稍后查看记忆库。",
+          open: true
+        })
+      } else {
+        toast({
+          title: "内容保存中",
+          description: "您的记忆内容正在后台保存，请稍后在记忆库中查看。",
+          open: true
+        })
+      }
       return // 如果初始保存失败，则停止执行
     }
 
@@ -146,14 +164,24 @@ export default function Home() {
         })
       } catch (error) {
         console.error("Error generating memory aids in background:", error)
-        toast({
-          title: "AI 辅助生成失败",
-          description: `无法为"${savedItem.content.substring(0, 20)}..."生成辅助工具。`,
-          variant: "destructive",
-          open: true
-        })
-        // 可选：更新列表中的项目以显示错误状态
-        // setMemoryItems(prev => prev.map(item => item.id === savedItem.id ? { ...item, error: "AI generation failed" } : item))
+        const errorMessage = error instanceof Error ? error.message : ''
+        
+        // 根据错误类型显示不同的友好提示
+        if (errorMessage.includes('超时') || errorMessage.includes('timeout')) {
+          toast({
+            title: "正在生成记忆辅助",
+            description: "AI 正在为您生成记忆内容，由于内容较复杂需要更多时间，请稍后回来查看完整内容。",
+            open: true
+          })
+        } else {
+          toast({
+            title: "记忆辅助生成中",
+            description: "AI 正在后台为您生成记忆辅助工具，请稍后刷新页面查看完整内容。",
+            open: true
+          })
+        }
+        // 可选：更新列表中的项目以显示生成中状态
+        // setMemoryItems(prev => prev.map(item => item.id === savedItem.id ? { ...item, generating: true } : item))
       }
     })();
   }
