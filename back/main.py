@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Header
+from fastapi import FastAPI, HTTPException, Depends, status, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import json
@@ -13,11 +14,12 @@ from datetime import datetime, timedelta
 import requests
 import hashlib
 import hmac
+import traceback
 
 from config import settings
 from database import get_anon_supabase
 import schemas
-from gemini import generate_memory_aids, generate_review_schedule_from_ebbinghaus, generate_image, generate_audio
+from ai_manager import AIManager, AIError, ProviderError, TimeoutError
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -28,12 +30,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 设置第三方库的日志级别
-logging.getLogger("httpx").setLevel(logging.DEBUG)
-logging.getLogger("httpcore").setLevel(logging.DEBUG)
-logging.getLogger("requests").setLevel(logging.DEBUG)
-logging.getLogger("urllib3").setLevel(logging.DEBUG)
-logging.getLogger("supabase").setLevel(logging.DEBUG)
-logging.getLogger("postgrest").setLevel(logging.DEBUG)
+logging.getLogger("httpx").setLevel(logging.INFO)
+logging.getLogger("httpcore").setLevel(logging.INFO)
+logging.getLogger("hpack").setLevel(logging.INFO)
+logging.getLogger("requests").setLevel(logging.INFO)
+logging.getLogger("urllib3").setLevel(logging.INFO)
+logging.getLogger("supabase").setLevel(logging.INFO)
+logging.getLogger("postgrest").setLevel(logging.INFO)
 
 app = FastAPI(title="MemBuddy API")
 
@@ -63,6 +66,7 @@ def health_check():
 # --- Dependencies ---
 async def get_current_user(authorization: str = Header(...)):
     if not authorization or not authorization.startswith("Bearer "):
+        logger.warning("Authorization header missing or invalid")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization header missing or invalid")
     
     token = authorization.split(" ")[1]
@@ -70,13 +74,21 @@ async def get_current_user(authorization: str = Header(...)):
         payload = jwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=["HS256"])
         user_id = payload.get("sub")
         if user_id is None:
+            logger.warning("Invalid token: 'sub' claim missing")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: 'sub' claim missing")
         
-        return {"id": user_id, "email": payload.get("email"), "full_name": payload.get("full_name", ""), "token": token}
+        user_info = {"id": user_id, "email": payload.get("email"), "full_name": payload.get("full_name", ""), "token": token}
+        logger.info(f"User authenticated: {user_id}")
+        return user_info
     except jwt.ExpiredSignatureError:
+        logger.warning("Token has expired")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"Invalid token: {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except Exception as e:
+        logger.error(f"Unexpected error during token validation: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 def get_supabase_authed(current_user: dict = Depends(get_current_user)) -> Client:
     supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
@@ -405,36 +417,67 @@ def get_memory_items(skip: int = 0, limit: int = 100, current_user: dict = Depen
 @app.post("/api/memory_items", response_model=schemas.MemoryItem, status_code=status.HTTP_201_CREATED)
 async def create_memory_item(item: schemas.MemoryItemCreate, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
     user_id = current_user['id']
+    logger.info(f"Creating memory item for user {user_id}")
     
-    # 1. Create the main memory item
-    item_dict = item.model_dump(exclude_unset=True, exclude={'memory_aids'})
-    item_dict['user_id'] = user_id
-    if 'title' not in item_dict or not item_dict['title']:
-        item_dict['title'] = item.content[:50]
+    try:
+        # 1. Create the main memory item
+        item_dict = item.model_dump(exclude_unset=True, exclude={'memory_aids'})
+        item_dict['user_id'] = user_id
+        if 'title' not in item_dict or not item_dict['title']:
+            item_dict['title'] = item.content[:50]
 
-    item_res = supabase.table("memory_items").insert(item_dict, returning="representation").execute()
-    if not item_res.data:
-        raise HTTPException(status_code=500, detail="Failed to create memory item.")
+        item_res = supabase.table("memory_items").insert(item_dict, returning="representation").execute()
+        if not item_res.data:
+            logger.error("Failed to create memory item")
+            raise HTTPException(status_code=500, detail="Failed to create memory item.")
+        
+        new_item = item_res.data[0]
+        new_item_id = new_item['id']
+        logger.info(f"Memory item created with ID: {new_item_id}")
+
+        # 2. Concurrently generate aids and review schedule
+        ai_manager = AIManager()
+        
+        # Create tasks properly - generate_memory_aids is sync, so wrap it in asyncio.to_thread
+        aids_task = asyncio.to_thread(ai_manager.generate_memory_aids, item.content)
+        schedule_task = asyncio.to_thread(ai_manager.generate_review_schedule_from_ebbinghaus)
+        
+        results = await asyncio.gather(aids_task, schedule_task, return_exceptions=True)
+        aids_result, schedule_result = results
+
+        # Handle memory aids generation
+        if isinstance(aids_result, Exception):
+            logger.error(f"Failed to generate memory aids: {aids_result}")
+        elif aids_result:
+            try:
+                supabase.table("memory_aids").insert({
+                    "memory_item_id": new_item_id, 
+                    "user_id": user_id, 
+                    "mind_map_data": json.dumps(aids_result.get("mindMap", {})), 
+                    "mnemonics_data": json.dumps(aids_result.get("mnemonics", [])), 
+                    "sensory_associations_data": json.dumps(aids_result.get("sensoryAssociations", []))
+                }).execute()
+                logger.info(f"Memory aids generated for item {new_item_id}")
+            except Exception as e:
+                logger.error(f"Failed to save memory aids: {e}")
+
+        # Handle review schedule generation
+        if isinstance(schedule_result, Exception):
+            logger.error(f"Failed to generate review schedule: {schedule_result}")
+        elif schedule_result:
+            try:
+                schedule_entries = [{"memory_item_id": new_item_id, "user_id": user_id, "review_date": date_str} for date_str in schedule_result.get("review_dates", [])]
+                if schedule_entries:
+                    supabase.table("review_schedules").insert(schedule_entries).execute()
+                    logger.info(f"Review schedule created for item {new_item_id}")
+            except Exception as e:
+                logger.error(f"Failed to save review schedule: {e}")
+
+        return get_memory_item(item_id=new_item_id, current_user=current_user, supabase=supabase)
     
-    new_item = item_res.data[0]
-    new_item_id = new_item['id']
-
-    # 2. Concurrently generate aids and review schedule
-    aids_task = generate_memory_aids(item.content)
-    schedule_task = asyncio.to_thread(generate_review_schedule_from_ebbinghaus)
-    
-    results = await asyncio.gather(aids_task, schedule_task, return_exceptions=True)
-    aids_result, schedule_result = results
-
-    if not isinstance(aids_result, Exception) and aids_result:
-        supabase.table("memory_aids").insert({"memory_item_id": new_item_id, "user_id": user_id, "mind_map_data": json.dumps(aids_result.get("mindMap", {})), "mnemonics_data": json.dumps(aids_result.get("mnemonics", [])), "sensory_associations_data": json.dumps(aids_result.get("sensoryAssociations", []))}).execute()
-
-    if not isinstance(schedule_result, Exception) and schedule_result:
-        schedule_entries = [{"memory_item_id": new_item_id, "user_id": user_id, "review_date": date_str} for date_str in schedule_result.get("review_dates", [])]
-        if schedule_entries:
-            supabase.table("review_schedules").insert(schedule_entries).execute()
-
-    return get_memory_item(item_id=new_item_id, current_user=current_user, supabase=supabase)
+    except Exception as e:
+        logger.error(f"Error creating memory item: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create memory item")
 
 @app.get("/api/memory_items/{item_id}", response_model=schemas.MemoryItem)
 def get_memory_item(item_id: uuid.UUID, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
@@ -577,10 +620,28 @@ def complete_review(schedule_id: uuid.UUID, review_data: schemas.ReviewCompletio
 # --- Memory Aids Generation ---
 @app.post("/api/memory/generate", response_model=schemas.MemoryAids)
 async def generate_memory_aids_endpoint(request: schemas.MemoryGenerateRequest, current_user: dict = Depends(get_current_user)):
-    raw_response = await generate_memory_aids(request.content)
-    if not raw_response:
-        raise HTTPException(status_code=500, detail="Failed to generate memory aids from AI service")
-    return schemas.MemoryAids(**raw_response)
+    logger.info(f"Generating memory aids for user {current_user['id']}")
+    
+    try:
+        ai_manager = AIManager()
+        raw_response = ai_manager.generate_memory_aids(request.content)
+        
+        if not raw_response:
+            logger.error("AI service returned empty response")
+            raise HTTPException(status_code=500, detail="Failed to generate memory aids from AI service")
+        
+        logger.info(f"Memory aids generated successfully for user {current_user['id']}")
+        return schemas.MemoryAids(**raw_response)
+    
+    except (AIError, ProviderError) as e:
+        logger.error(f"AI service error: {e}")
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+    except TimeoutError as e:
+        logger.error(f"AI service timeout: {e}")
+        raise HTTPException(status_code=504, detail=f"AI service timeout: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error generating memory aids: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate memory aids")
 
 # --- Share Routes ---
 @app.post("/api/share", response_model=schemas.ShareResponse)
@@ -681,19 +742,32 @@ async def generate_image_endpoint(request: schemas.ImageGenerateRequest, current
     """
     Generate an actual image based on visual association content
     """
+    logger.info(f"Generating image for user {current_user['id']}")
+    
     try:
-        result = await generate_image(request.content, request.context)
+        ai_manager = AIManager()
+        result = await ai_manager.generate_image(request.content, request.context)
+        
         if not result:
+            logger.error("Image generation returned empty result")
             raise HTTPException(status_code=500, detail="Failed to generate image")
         
+        logger.info(f"Image generated successfully for user {current_user['id']}")
         return schemas.ImageGenerateResponse(
             image_url=result.get('image_url'),
             image_base64=result.get('image_base64'),
             prompt=result.get('prompt'),
-            status="generated"
+            status=result.get('status', 'generated')
         )
+    
+    except (AIError, ProviderError) as e:
+        logger.error(f"AI service error during image generation: {e}")
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+    except TimeoutError as e:
+        logger.error(f"AI service timeout during image generation: {e}")
+        raise HTTPException(status_code=504, detail=f"AI service timeout: {str(e)}")
     except Exception as e:
-        logger.error(f"Error generating image: {e}")
+        logger.error(f"Unexpected error generating image: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate image")
 
 @app.post("/api/generate/audio", response_model=schemas.AudioGenerateResponse)
@@ -701,11 +775,17 @@ async def generate_audio_endpoint(request: schemas.AudioGenerateRequest, current
     """
     Generate actual audio based on auditory association content
     """
+    logger.info(f"Generating audio for user {current_user['id']}")
+    
     try:
-        result = await generate_audio(request.content, request.context)
+        ai_manager = AIManager()
+        result = await ai_manager.generate_audio(request.content, request.context)
+        
         if not result:
+            logger.error("Audio generation returned empty result")
             raise HTTPException(status_code=500, detail="Failed to generate audio")
         
+        logger.info(f"Audio generated successfully for user {current_user['id']}")
         return schemas.AudioGenerateResponse(
             audio_base64=result.get('audio_base64'),
             script=result.get('script'),
@@ -713,14 +793,40 @@ async def generate_audio_endpoint(request: schemas.AudioGenerateRequest, current
             sound_description=result.get('sound_description'),
             sound_type=result.get('sound_type'),
             message=result.get('message'),
-            status="generated"
+            status=result.get('status', 'generated')
         )
+    
+    except (AIError, ProviderError) as e:
+        logger.error(f"AI service error during audio generation: {e}")
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+    except TimeoutError as e:
+        logger.error(f"AI service timeout during audio generation: {e}")
+        raise HTTPException(status_code=504, detail=f"AI service timeout: {str(e)}")
     except Exception as e:
-        logger.error(f"Error generating audio: {e}")
+        logger.error(f"Unexpected error generating audio: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate audio")
+
+# --- Exception Handlers ---
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    logger.warning(f"HTTP {exc.status_code} error: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "status_code": exc.status_code}
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "status_code": 500}
+    )
 
 if __name__ == "__main__":
     import uvicorn
     import os
     port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Starting MemBuddy API server on port {port}")
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

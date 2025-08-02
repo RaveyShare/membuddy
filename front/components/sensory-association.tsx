@@ -66,12 +66,14 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
         [`image_${type}`]: {
           prompt: result.prompt,
           image_url: result.image_url,
-          image_base64: result.image_base64
+          image_base64: result.image_base64,
+          message: result.message,
+          status: result.status
         }
       }))
       toast({
-        title: "图片生成成功",
-        description: "AI图片已生成完成",
+        title: "图片生成提示词已生成",
+        description: "AI图片生成功能正在开发中，当前返回生成提示词",
       })
     } catch (error) {
       toast({
@@ -96,12 +98,15 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
           duration: result.duration,
           sound_description: result.sound_description,
           sound_type: result.sound_type,
-          message: result.message
+          message: result.message,
+          suggestions: result.suggestions,
+          status: result.status,
+          voice: result.voice
         }
       }))
       toast({
-        title: "音频生成成功",
-        description: "AI音频已生成完成",
+        title: "音频生成建议已生成",
+        description: "AI音频生成功能正在开发中，当前返回生成建议",
       })
     } catch (error) {
       toast({
@@ -167,24 +172,30 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
             )}
           </div>
           {generatedContent[`image_${item.dynasty}`] && (
-            <div className="mt-2 rounded-lg bg-green-500/10 p-3">
+            <div className="mt-2 rounded-lg bg-blue-500/10 p-3">
+              <div className="flex items-center mb-2">
+                <span className="text-sm font-medium text-blue-400">🚧 AI图片生成功能开发中</span>
+              </div>
+              
               {typeof generatedContent[`image_${item.dynasty}`] === 'string' ? (
                 <>
-                  <p className="text-sm font-medium text-green-400">AI图片生成提示词:</p>
-                  <p className="text-sm text-white">{generatedContent[`image_${item.dynasty}`]}</p>
+                  <p className="text-sm font-medium text-green-400 mb-1">生成的提示词:</p>
+                  <p className="text-sm text-white bg-black/30 p-2 rounded">{generatedContent[`image_${item.dynasty}`]}</p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-green-400">AI生成的图片:</p>
-                  {generatedContent[`image_${item.dynasty}`].image_base64 && (
-                    <img 
-                      src={generatedContent[`image_${item.dynasty}`].image_base64}
-                      alt="Generated image"
-                      className="mt-2 max-w-full rounded-lg"
-                    />
+                  <p className="text-sm font-medium text-green-400 mb-1">生成的提示词:</p>
+                  <p className="text-sm text-white bg-black/30 p-2 rounded">{generatedContent[`image_${item.dynasty}`].prompt}</p>
+                  
+                  {generatedContent[`image_${item.dynasty}`].message && (
+                    <div className="mt-2 p-2 bg-yellow-500/10 rounded border border-yellow-500/20">
+                      <p className="text-sm text-yellow-400">{generatedContent[`image_${item.dynasty}`].message}</p>
+                    </div>
                   )}
-                  <p className="text-sm font-medium text-green-400 mt-2">提示词:</p>
-                  <p className="text-sm text-white">{generatedContent[`image_${item.dynasty}`].prompt}</p>
+                  
+                  <div className="mt-2 text-xs text-gray-400">
+                    💡 实际图片生成功能正在开发中，当前提供专业的AI绘图提示词
+                  </div>
                 </>
               )}
             </div>
@@ -239,48 +250,41 @@ export default function SensoryAssociation({ association, onShare }: SensoryAsso
             )}
           </div>
           {generatedContent[`audio_${item.dynasty}`] && (
-            <div className="mt-2 rounded-lg bg-green-500/10 p-3">
+            <div className="mt-2 rounded-lg bg-purple-500/10 p-3">
+              <div className="flex items-center mb-2">
+                <span className="text-sm font-medium text-purple-400">🚧 AI音频生成功能开发中</span>
+              </div>
+              
               {typeof generatedContent[`audio_${item.dynasty}`] === 'string' ? (
                 <>
-                  <p className="text-sm font-medium text-green-400">AI音频生成描述:</p>
-                  <p className="text-sm text-white">{generatedContent[`audio_${item.dynasty}`]}</p>
+                  <p className="text-sm font-medium text-green-400 mb-1">生成的建议:</p>
+                  <p className="text-sm text-white bg-black/30 p-2 rounded">{generatedContent[`audio_${item.dynasty}`]}</p>
                 </>
               ) : (
                 <>
-                  {generatedContent[`audio_${item.dynasty}`].sound_type === 'environmental' ? (
+                  <p className="text-sm font-medium text-green-400 mb-1">音频脚本:</p>
+                  <p className="text-sm text-white bg-black/30 p-2 rounded">{generatedContent[`audio_${item.dynasty}`].script}</p>
+                  
+                  {generatedContent[`audio_${item.dynasty}`].suggestions && (
                     <>
-                      <p className="text-sm font-medium text-green-400">环境音效描述:</p>
-                      <p className="text-sm text-white">{generatedContent[`audio_${item.dynasty}`].script}</p>
-                      {generatedContent[`audio_${item.dynasty}`].sound_description && (
-                        <>
-                          <p className="text-sm font-medium text-green-400 mt-2">声音特征:</p>
-                          <p className="text-sm text-white">{generatedContent[`audio_${item.dynasty}`].sound_description}</p>
-                        </>
-                      )}
-                      {generatedContent[`audio_${item.dynasty}`].message && (
-                        <p className="text-sm text-blue-400 mt-2">{generatedContent[`audio_${item.dynasty}`].message}</p>
-                      )}
-                      {generatedContent[`audio_${item.dynasty}`].duration && (
-                        <p className="text-sm text-gray-400 mt-1">预期时长: {generatedContent[`audio_${item.dynasty}`].duration.toFixed(1)}秒</p>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium text-green-400">AI生成的音频:</p>
-                      {generatedContent[`audio_${item.dynasty}`].audio_base64 && (
-                        <audio 
-                          controls 
-                          className="mt-2 w-full"
-                          src={generatedContent[`audio_${item.dynasty}`].audio_base64}
-                        />
-                      )}
-                      <p className="text-sm font-medium text-green-400 mt-2">脚本:</p>
-                      <p className="text-sm text-white">{generatedContent[`audio_${item.dynasty}`].script}</p>
-                      {generatedContent[`audio_${item.dynasty}`].duration && (
-                        <p className="text-sm text-gray-400 mt-1">时长: {generatedContent[`audio_${item.dynasty}`].duration.toFixed(1)}秒</p>
-                      )}
+                      <p className="text-sm font-medium text-blue-400 mb-1 mt-2">语音合成建议:</p>
+                      <p className="text-sm text-white bg-black/30 p-2 rounded">{generatedContent[`audio_${item.dynasty}`].suggestions}</p>
                     </>
                   )}
+                  
+                  {generatedContent[`audio_${item.dynasty}`].message && (
+                    <div className="mt-2 p-2 bg-yellow-500/10 rounded border border-yellow-500/20">
+                      <p className="text-sm text-yellow-400">{generatedContent[`audio_${item.dynasty}`].message}</p>
+                    </div>
+                  )}
+                  
+                  {generatedContent[`audio_${item.dynasty}`].voice && (
+                    <p className="text-sm text-gray-400 mt-2">推荐语音: {generatedContent[`audio_${item.dynasty}`].voice}</p>
+                  )}
+                  
+                  <div className="mt-2 text-xs text-gray-400">
+                    💡 实际音频生成功能正在开发中，当前提供专业的语音合成建议
+                  </div>
                 </>
               )}
             </div>

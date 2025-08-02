@@ -10,6 +10,7 @@ from config import settings
 import google.generativeai as genai
 from openai import OpenAI
 import anthropic
+from prompt_templates import PromptTemplates
 
 class GeminiProvider:
     """Google Gemini API Adapter"""
@@ -29,108 +30,14 @@ class GeminiProvider:
     
     def generate_memory_aids(self, content: str) -> Dict[str, Any]:
         """Generate memory aids content"""
-        prompt = f"""
-You are MemBuddy, an AI assistant that helps users with memory techniques. Based on the following content, generate mind maps, mnemonics, and sensory associations.
-
-Generate three types of mnemonics: Rhyme Memory Method, Core Content Summary, Memory Palace Encoding.
-
-For Core Content Summary, please follow these requirements:
-1. Extract core arguments: Summarize the most core and overall thoughts or arguments of the text in one or two sentences
-2. Structured breakdown: Break down the text content into several key principles, viewpoints, or main parts
-3. Distinguish viewpoints from examples: For each point, clearly divide it into two levels: concept/viewpoint and example/practice
-
-For Memory Palace Encoding, please follow these requirements:
-1. Set theme: As a memory master, create an imaginative and unified "memory palace" theme for all key points from the core content summary
-2. Create scenes: Precisely map each key principle from the summary to a specific "room", "station", "scene" or "step" in the theme
-3. Inject vivid details: Use strong visual, action and sensory language to create concrete, vivid images that symbolically represent corresponding principles and examples
-4. Clear connection points: End each scene description with a clear "memory anchor" to firmly connect the vivid image with abstract concepts
-
-User input: {content}
-
-Please output strictly in the following JSON format without any additional content:
-
-{{
-  "mindMap": {{
-    "id": "root",
-    "label": "Memory Topic",
-    "children": [
-      {{
-        "id": "part1",
-        "label": "Main Content 1",
-        "children": [
-          {{ "id": "leaf1", "label": "Detail 1" }},
-          {{ "id": "leaf2", "label": "Detail 2" }}
-        ]
-      }}
-    ]
-  }},
-  "mnemonics": [
-    {{
-      "id": "rhyme",
-      "title": "Rhyme Memory Method",
-      "content": "Catchy rhyme for memory",
-      "type": "rhyme"
-    }},
-    {{"id": "summary",
-      "title": "Core Content Summary",
-      "content": "Complete summary description based on core arguments and key principles",
-      "type": "summary",
-      "corePoint": "Core argument summary",
-      "keyPrinciples": [
-        {{
-          "concept": "Concept/Viewpoint",
-          "example": "Example/Practice"
-        }}
-      ]
-    }},
-    {{
-      "id": "palace",
-      "title": "Memory Palace Encoding",
-      "content": "Complete memory palace description based on theme and scenes",
-      "type": "palace",
-      "theme": "Memory palace theme",
-      "scenes": [
-        {{
-          "principle": "Corresponding principle",
-          "scene": "Vivid scene description",
-          "anchor": "Memory anchor"
-        }}
-      ]
-    }}
-  ],
-  "sensoryAssociations": [
-    {{
-      "id": "visual",
-      "title": "Visual Association",
-      "type": "visual",
-      "content": [
-        {{
-          "dynasty": "Content 1",
-          "image": "🌟",
-          "color": "#fbbf24",
-          "association": "Visual association description"
-        }}
-      ]
-    }},
-    {{
-      "id": "auditory",
-      "title": "Auditory Association",
-      "type": "auditory",
-      "content": [
-        {{ "dynasty": "Content 1", "sound": "Sound description", "rhythm": "Rhythm feel" }}
-      ]
-    }},
-    {{
-      "id": "tactile",
-      "title": "Tactile Association",
-      "type": "tactile",
-      "content": [
-        {{ "dynasty": "Content 1", "texture": "Texture", "feeling": "Touch feeling" }}
-      ]
-    }}
-  ]
-}}
-        """
+        # 根据环境变量或配置确定语言
+        language = os.getenv("LANGUAGE", "en")  # 默认英文
+        if language.startswith("zh"):
+            language = "zh"
+        else:
+            language = "en"
+            
+        prompt = PromptTemplates.get_memory_aids_prompt(content, language)
         
         try:
             if self.base_url != "https://generativelanguage.googleapis.com":
@@ -271,6 +178,52 @@ Please output strictly in the following JSON format without any additional conte
                 }
             ]
         }
+    
+    def generate_text(self, prompt: str) -> str:
+        """Generate text response from prompt"""
+        try:
+            if self.base_url != "https://generativelanguage.googleapis.com":
+                # Use proxy
+                result = self._call_via_proxy_for_text(prompt)
+            else:
+                # Use direct API
+                result = self._call_direct_api_for_text(prompt)
+            return result
+        except Exception as e:
+            print(f"Error generating text: {e}")
+            return None
+    
+    def _call_direct_api_for_text(self, prompt: str) -> str:
+        """Call Gemini API directly for text generation"""
+        model = genai.GenerativeModel(self.model)
+        response = model.generate_content(prompt)
+        return response.text if response.text else None
+    
+    def _call_via_proxy_for_text(self, prompt: str) -> str:
+        """Call Gemini API via proxy for text generation"""
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        
+        data = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }]
+        }
+        
+        response = requests.post(
+            f"{self.base_url}/v1beta/models/{self.model}:generateContent",
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if "candidates" in result and len(result["candidates"]) > 0:
+                content = result["candidates"][0]["content"]["parts"][0]["text"]
+                return content
+        return None
 
 class OpenAIProvider:
     """OpenAI API Adapter"""
@@ -313,8 +266,49 @@ Please output strictly in JSON format without any additional content.
     
     def _get_default_response(self, original_content: str) -> Dict[str, Any]:
         """Return default response structure"""
-        # Similar to GeminiProvider._get_default_response
-        pass
+        return {
+            "mindMap": {
+                "id": "root",
+                "label": "Memory Content",
+                "children": [
+                    {
+                        "id": "main",
+                        "label": original_content[:50] + "...",
+                        "children": [
+                            {"id": "detail1", "label": "Key Point 1"},
+                            {"id": "detail2", "label": "Key Point 2"}
+                        ]
+                    }
+                ]
+            },
+            "mnemonics": [
+                {
+                    "id": "rhyme",
+                    "title": "Rhyme Memory Method",
+                    "content": "Please try again, system is processing",
+                    "type": "rhyme"
+                }
+            ],
+            "sensoryAssociations": [
+                {
+                    "id": "visual",
+                    "title": "Visual Association",
+                    "type": "visual",
+                    "content": [
+                        {
+                            "dynasty": "Content",
+                            "image": "🧠",
+                            "color": "#3b82f6",
+                            "association": "Memory association",
+                            "feeling": "",
+                            "texture": "",
+                            "sound": "",
+                            "rhythm": ""
+                        }
+                    ]
+                }
+            ]
+        }
 
 class ClaudeProvider:
     """Anthropic Claude API Adapter"""
@@ -357,8 +351,49 @@ Please output strictly in JSON format without any additional content.
     
     def _get_default_response(self, original_content: str) -> Dict[str, Any]:
         """Return default response structure"""
-        # Similar to GeminiProvider._get_default_response
-        pass
+        return {
+            "mindMap": {
+                "id": "root",
+                "label": "Memory Content",
+                "children": [
+                    {
+                        "id": "main",
+                        "label": original_content[:50] + "...",
+                        "children": [
+                            {"id": "detail1", "label": "Key Point 1"},
+                            {"id": "detail2", "label": "Key Point 2"}
+                        ]
+                    }
+                ]
+            },
+            "mnemonics": [
+                {
+                    "id": "rhyme",
+                    "title": "Rhyme Memory Method",
+                    "content": "Please try again, system is processing",
+                    "type": "rhyme"
+                }
+            ],
+            "sensoryAssociations": [
+                {
+                    "id": "visual",
+                    "title": "Visual Association",
+                    "type": "visual",
+                    "content": [
+                        {
+                            "dynasty": "Content",
+                            "image": "🧠",
+                            "color": "#3b82f6",
+                            "association": "Memory association",
+                            "feeling": "",
+                            "texture": "",
+                            "sound": "",
+                            "rhythm": ""
+                        }
+                    ]
+                }
+            ]
+        }
 
 class GlobalAIProviderFactory:
     """Global AI Provider Factory"""

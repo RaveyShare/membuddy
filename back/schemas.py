@@ -92,7 +92,7 @@ class SensoryAssociation(BaseModel):
     id: str
     title: str
     type: str
-    content: Union[List[VisualAssociation], List[AuditoryAssociation], List[TactileAssociation]]
+    content: Union[List[VisualAssociation], List[AuditoryAssociation], List[TactileAssociation], str]
 
 class MemoryAids(BaseModel):
     mindMap: Optional[MindMapNode] = None
@@ -195,16 +195,19 @@ class AudioGenerateRequest(BaseModel):
 
 class ImageGenerateResponse(BaseModel):
     prompt: str
+    message: Optional[str] = None
     image_url: Optional[str] = None
     image_base64: Optional[str] = None
-    status: str = "generated"
+    status: str = "prompt_generated"
 
 class AudioGenerateResponse(BaseModel):
     script: str
+    suggestions: Optional[str] = None
     audio_base64: Optional[str] = None
     duration: Optional[float] = None
     sound_description: Optional[str] = None
     sound_type: Optional[str] = None
     message: Optional[str] = None
-    status: str = "generated"
+    status: str = "prompt_generated"
+    voice: Optional[str] = None
 
