@@ -423,6 +423,9 @@ update_deployment() {
     setup_python_env
     start_app_service
     
+    # 更新 Nginx 配置
+    setup_nginx
+    
     # 检查服务状态
     check_service
     
