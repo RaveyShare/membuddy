@@ -75,34 +75,20 @@ install_dependencies() {
     log_success "系统依赖安装完成"
 }
 
-# 安装 Docker
-install_docker() {
-    log_info "安装 Docker..."
+# 安装 Python 环境
+install_python() {
+    log_info "安装 Python 环境..."
     
-    if command -v docker &> /dev/null; then
-        log_warning "Docker 已安装，跳过安装步骤"
-        return
+    # 安装 Python 3.11 和相关工具
+    sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
+    
+    # 安装 uv (更快的 Python 包管理器)
+    if ! command -v uv &> /dev/null; then
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        source $HOME/.cargo/env
     fi
     
-    # 添加 Docker 官方 GPG 密钥
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    
-    # 添加 Docker 仓库
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
-    # 安装 Docker
-    sudo apt update
-    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-    
-    # 启动 Docker 服务
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    
-    # 将当前用户添加到 docker 组
-    sudo usermod -aG docker $USER
-    
-    log_success "Docker 安装完成"
-    log_warning "请重新登录以使 Docker 组权限生效"
+    log_success "Python 环境安装完成"
 }
 
 # 安装 Nginx
@@ -186,28 +172,51 @@ setup_environment() {
     log_success "环境变量配置完成"
 }
 
-# 构建 Docker 镜像
-build_docker_image() {
-    log_info "构建 Docker 镜像..."
+# 设置 Python 虚拟环境
+setup_python_env() {
+    log_info "设置 Python 虚拟环境..."
     
     cd $APP_DIR/back
     
-    # 停止并删除旧容器
-    if docker ps -a --format 'table {{.Names}}' | grep -q "^$APP_NAME$"; then
-        log_info "停止旧容器..."
-        docker stop $APP_NAME || true
-        docker rm $APP_NAME || true
+    # 停止旧服务
+    stop_app_service
+    
+    # 创建虚拟环境
+    if [[ -d ".venv" ]]; then
+        log_warning "虚拟环境已存在，删除并重新创建..."
+        rm -rf .venv
     fi
     
-    # 构建新镜像
-    docker build -t $APP_NAME .
+    python3.11 -m venv .venv
+    source .venv/bin/activate
     
-    log_success "Docker 镜像构建完成"
+    # 安装依赖
+    if command -v uv &> /dev/null; then
+        uv pip install -r requirements.txt
+    else
+        pip install -r requirements.txt
+    fi
+    
+    log_success "Python 虚拟环境设置完成"
 }
 
-# 启动应用容器
-start_container() {
-    log_info "启动应用容器..."
+# 停止应用服务
+stop_app_service() {
+    log_info "停止应用服务..."
+    
+    # 查找并停止 uvicorn 进程
+    if pgrep -f "uvicorn.*main:app" > /dev/null; then
+        pkill -f "uvicorn.*main:app"
+        sleep 2
+        log_success "应用服务已停止"
+    else
+        log_info "应用服务未运行"
+    fi
+}
+
+# 启动应用服务
+start_app_service() {
+    log_info "启动应用服务..."
     
     cd $APP_DIR/back
     
@@ -216,31 +225,50 @@ start_container() {
         log_warning "未找到 Google Cloud 服务账号密钥文件"
         log_warning "请将 service-account-key.json 文件放置在 $APP_DIR/back/ 目录下"
         
-        read -p "是否继续启动容器? (y/n): " -n 1 -r
+        read -p "是否继续启动服务? (y/n): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
         fi
     fi
     
-    # 启动容器
-    docker run -d \
-        --name $APP_NAME \
-        --restart unless-stopped \
-        -p 8000:8000 \
-        --env-file .env \
-        $(if [[ -f "service-account-key.json" ]]; then echo "-v $(pwd)/service-account-key.json:/app/google-credentials.json:ro"; fi) \
-        $APP_NAME
+    # 激活虚拟环境
+    source .venv/bin/activate
     
-    # 等待容器启动
+    # 创建 systemd 服务文件
+    sudo tee /etc/systemd/system/$APP_NAME.service > /dev/null <<EOF
+[Unit]
+Description=MemBuddy API Service
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$APP_DIR/back
+Environment=PATH=$APP_DIR/back/.venv/bin
+EnvironmentFile=$APP_DIR/back/.env
+ExecStart=$APP_DIR/back/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # 重新加载 systemd 并启动服务
+    sudo systemctl daemon-reload
+    sudo systemctl enable $APP_NAME
+    sudo systemctl start $APP_NAME
+    
+    # 等待服务启动
     sleep 5
     
-    # 检查容器状态
-    if docker ps --format 'table {{.Names}}' | grep -q "^$APP_NAME$"; then
-        log_success "应用容器启动成功"
+    # 检查服务状态
+    if sudo systemctl is-active --quiet $APP_NAME; then
+        log_success "应用服务启动成功"
     else
-        log_error "应用容器启动失败"
-        docker logs $APP_NAME
+        log_error "应用服务启动失败"
+        sudo systemctl status $APP_NAME
         exit 1
     fi
 }
@@ -256,58 +284,45 @@ setup_nginx() {
         exit 1
     fi
     
-    # 创建 Nginx 配置文件
-    sudo tee /etc/nginx/sites-available/$NGINX_SITE > /dev/null <<EOF
-server {
-    listen 80;
-    server_name $BACKEND_DOMAIN;
+    # 检查项目中的 Nginx 配置模板
+    local nginx_template="$APP_DIR/nginx/local-deploy.conf"
+    if [[ ! -f "$nginx_template" ]]; then
+        log_error "未找到 Nginx 配置模板: $nginx_template"
+        exit 1
+    fi
     
-    # API 代理
-    location / {
-        proxy_pass http://localhost:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-        
-        # CORS 配置
-        add_header Access-Control-Allow-Origin *;
-        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
-        add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization";
-        
-        if (\$request_method = 'OPTIONS') {
-            add_header Access-Control-Allow-Origin *;
-            add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
-            add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization";
-            add_header Access-Control-Max-Age 1728000;
-            add_header Content-Type 'text/plain; charset=utf-8';
-            add_header Content-Length 0;
-            return 204;
-        }
-    }
+    # 复制并修改配置文件
+    sudo cp "$nginx_template" "/etc/nginx/sites-available/$NGINX_SITE"
     
-    # 健康检查
-    location /health {
-        proxy_pass http://localhost:8000/health;
-        access_log off;
-    }
-}
-EOF
+    # 替换域名占位符
+    sudo sed -i "s/your-domain.com/$BACKEND_DOMAIN/g" "/etc/nginx/sites-available/$NGINX_SITE"
     
     # 启用站点
-    sudo ln -sf /etc/nginx/sites-available/$NGINX_SITE /etc/nginx/sites-enabled/
+    sudo ln -sf "/etc/nginx/sites-available/$NGINX_SITE" "/etc/nginx/sites-enabled/"
+    
+    # 删除默认站点（如果存在）
+    if [[ -f "/etc/nginx/sites-enabled/default" ]]; then
+        sudo rm -f "/etc/nginx/sites-enabled/default"
+        log_info "已删除默认 Nginx 站点配置"
+    fi
+    
+    # 创建日志目录
+    sudo mkdir -p /var/log/nginx
     
     # 测试 Nginx 配置
-    sudo nginx -t
+    if sudo nginx -t; then
+        log_success "Nginx 配置语法检查通过"
+    else
+        log_error "Nginx 配置语法错误，请检查配置文件"
+        exit 1
+    fi
     
     # 重载 Nginx
     sudo systemctl reload nginx
     
     log_success "Nginx 配置完成"
+    log_info "配置文件位置: /etc/nginx/sites-available/$NGINX_SITE"
+    log_info "访问地址: http://$BACKEND_DOMAIN"
     
     # 询问是否配置 SSL
     read -p "是否配置 SSL 证书? (y/n): " -n 1 -r
@@ -335,12 +350,12 @@ setup_ssl() {
 check_service() {
     log_info "检查服务状态..."
     
-    # 检查 Docker 容器
-    if docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -q "^$APP_NAME"; then
-        log_success "Docker 容器运行正常"
-        docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep $APP_NAME
+    # 检查应用服务
+    if sudo systemctl is-active --quiet $APP_NAME; then
+        log_success "应用服务运行正常"
+        sudo systemctl status $APP_NAME --no-pager -l
     else
-        log_error "Docker 容器未运行"
+        log_error "应用服务未运行"
         return 1
     fi
     
@@ -363,7 +378,7 @@ check_service() {
 # 显示日志
 show_logs() {
     log_info "显示应用日志..."
-    docker logs -f $APP_NAME
+    sudo journalctl -u $APP_NAME -f
 }
 
 # 更新部署
@@ -375,9 +390,9 @@ update_deployment() {
     # 拉取最新代码
     git pull origin main
     
-    # 重新构建和启动
-    build_docker_image
-    start_container
+    # 重新设置环境和启动服务
+    setup_python_env
+    start_app_service
     
     # 检查服务状态
     check_service
@@ -392,13 +407,13 @@ init_environment() {
     check_root
     check_system
     install_dependencies
-    install_docker
+    install_python
     install_nginx
     install_certbot
     setup_app_directory
     
     log_success "环境初始化完成"
-    log_info "请重新登录以使 Docker 组权限生效，然后运行: ./deploy-aliyun.sh deploy"
+    log_info "环境初始化完成，现在可以运行: ./deploy-aliyun.sh deploy"
 }
 
 # 部署应用
@@ -407,18 +422,19 @@ deploy_application() {
     
     clone_repository
     setup_environment
-    build_docker_image
-    start_container
+    setup_python_env
+    start_app_service
     setup_nginx
     check_service
     
     log_success "应用部署完成"
     log_info "你可以通过以下命令查看日志: ./deploy-aliyun.sh logs"
+    log_info "你可以通过以下命令检查服务状态: ./deploy-aliyun.sh status"
 }
 
 # 显示帮助信息
 show_help() {
-    echo "MemBuddy 阿里云一键部署脚本"
+    echo "MemBuddy 阿里云一键部署脚本 (本地部署版本)"
     echo ""
     echo "使用方法:"
     echo "  ./deploy-aliyun.sh init     - 初始化服务器环境"
@@ -426,13 +442,18 @@ show_help() {
     echo "  ./deploy-aliyun.sh update   - 更新部署"
     echo "  ./deploy-aliyun.sh status   - 检查服务状态"
     echo "  ./deploy-aliyun.sh logs     - 查看应用日志"
+    echo "  ./deploy-aliyun.sh stop     - 停止应用服务"
     echo "  ./deploy-aliyun.sh help     - 显示帮助信息"
     echo ""
     echo "部署步骤:"
     echo "  1. 首次部署请先运行: ./deploy-aliyun.sh init"
-    echo "  2. 重新登录服务器"
-    echo "  3. 运行: ./deploy-aliyun.sh deploy"
-    echo "  4. 根据提示配置环境变量和域名"
+    echo "  2. 运行: ./deploy-aliyun.sh deploy"
+    echo "  3. 根据提示配置环境变量和域名"
+    echo ""
+    echo "说明:"
+    echo "  - 本脚本使用 Python 虚拟环境和 systemd 服务管理"
+    echo "  - 不再依赖 Docker，直接在系统上运行应用"
+    echo "  - 自动配置 Nginx 反向代理和 SSL 证书"
 }
 
 # 主函数
@@ -452,6 +473,9 @@ main() {
             ;;
         "logs")
             show_logs
+            ;;
+        "stop")
+            stop_app_service
             ;;
         "help")
             show_help
