@@ -172,6 +172,31 @@ setup_environment() {
     log_success "环境变量配置完成"
 }
 
+# 检测可用的 Python 版本
+detect_python() {
+    local python_cmd=""
+    
+    # 按优先级检查 Python 版本
+    for cmd in python3.11 python3.10 python3.9 python3; do
+        if command -v "$cmd" &> /dev/null; then
+            # 检查版本是否满足要求 (>= 3.9)
+            local version=$("$cmd" -c "import sys; print(sys.version_info.major * 10 + sys.version_info.minor)")
+            if [[ $version -ge 39 ]]; then
+                python_cmd="$cmd"
+                break
+            fi
+        fi
+    done
+    
+    if [[ -z "$python_cmd" ]]; then
+        log_error "未找到 Python 3.9+ 版本，请先安装 Python"
+        log_info "在 Ubuntu/Debian 上可以运行: sudo apt install python3.11 python3.11-venv"
+        exit 1
+    fi
+    
+    echo "$python_cmd"
+}
+
 # 设置 Python 虚拟环境
 setup_python_env() {
     log_info "设置 Python 虚拟环境..."
@@ -181,13 +206,17 @@ setup_python_env() {
     # 停止旧服务
     stop_app_service
     
+    # 检测可用的 Python 版本
+    local python_cmd=$(detect_python)
+    log_info "使用 Python 命令: $python_cmd"
+    
     # 创建虚拟环境
     if [[ -d ".venv" ]]; then
         log_warning "虚拟环境已存在，删除并重新创建..."
         rm -rf .venv
     fi
     
-    python3.11 -m venv .venv
+    "$python_cmd" -m venv .venv
     source .venv/bin/activate
     
     # 安装依赖
