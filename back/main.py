@@ -333,6 +333,37 @@ def wechat_mp_login(request: schemas.WechatMpLoginRequest, supabase: Client = De
         logger.error(f"WeChat MP login error: {e}")
         raise HTTPException(status_code=500, detail="WeChat login failed")
 
+
+@app.get("/auth/wechat/callback")
+def wechat_callback(code: str = None, state: str = None):
+    """
+    微信公众号授权回调处理
+    接收微信返回的授权码，重定向到前端页面
+    """
+    try:
+        if not code:
+            # 如果没有授权码，重定向到前端登录页面并显示错误
+            return JSONResponse(
+                status_code=400,
+                content={"error": "授权失败", "message": "未获取到授权码"}
+            )
+        
+        # 重定向到前端回调页面，传递授权码和状态
+        from fastapi.responses import RedirectResponse
+        frontend_callback_url = f"https://membuddy.ravey.site/auth/wechat/callback?code={code}"
+        if state:
+            frontend_callback_url += f"&state={state}"
+        
+        return RedirectResponse(url=frontend_callback_url)
+        
+    except Exception as e:
+        logger.error(f"WeChat callback error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "回调处理失败", "message": str(e)}
+        )
+
+
 # --- Memory Item CRUD ---
 @app.get("/api/memory_items", response_model=List[schemas.MemoryItem])
 def get_memory_items(skip: int = 0, limit: int = 100, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
