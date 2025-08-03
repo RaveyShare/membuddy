@@ -182,8 +182,13 @@ export default function LoginForm() {
       if (isWechatEnv) {
         // 在微信环境中，引导用户到公众号授权页面
         const appId = process.env.NEXT_PUBLIC_WECHAT_MP_APP_ID
-        // 使用固定的生产域名作为回调地址，确保与微信公众号后台配置一致
-        const redirectUri = encodeURIComponent('https://membuddy.ravey.site/auth/wechat/callback')
+        // 使用环境变量配置的回调地址，如果没有配置则使用默认值
+        const redirectUri = encodeURIComponent(
+          process.env.NEXT_PUBLIC_WECHAT_REDIRECT_URL || 
+          (process.env.NODE_ENV === 'production' 
+            ? 'https://membuddy.ravey.site/auth/wechat/callback'
+            : 'http://localhost:3000/auth/wechat/callback')
+        )
         const state = Math.random().toString(36).substring(2, 15)
         
         // 保存state到localStorage用于验证
@@ -195,8 +200,13 @@ export default function LoginForm() {
       } else {
         // 在非微信环境中，生成二维码
         const appId = process.env.NEXT_PUBLIC_WECHAT_MP_APP_ID
-        // 使用固定的生产域名作为回调地址，确保与微信公众号后台配置一致
-        const redirectUri = encodeURIComponent('https://membuddy.ravey.site/auth/wechat/callback')
+        // 使用环境变量配置的回调地址，如果没有配置则使用默认值
+        const redirectUri = encodeURIComponent(
+          process.env.NEXT_PUBLIC_WECHAT_REDIRECT_URL || 
+          (process.env.NODE_ENV === 'production' 
+            ? 'https://membuddy.ravey.site/auth/wechat/callback'
+            : 'http://localhost:3000/auth/wechat/callback')
+        )
         const state = Math.random().toString(36).substring(2, 15)
         
         // 保存state到localStorage用于验证
