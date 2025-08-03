@@ -205,12 +205,14 @@ export default function LoginForm() {
             ? 'https://membuddy.ravey.site/auth/wechat/callback'
             : 'http://localhost:3000/auth/wechat/callback')
         )
+        console.log('重定向URI:', decodeURIComponent(redirectUri))
         const state = Math.random().toString(36).substring(2, 15)
         
         // 保存state到localStorage用于验证
         localStorage.setItem('wechat_state', state)
         
         const authUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_userinfo&state=${state}#wechat_redirect`
+        console.log('完整授权URL:', authUrl)
         
         setQrCodeUrl(authUrl)
         setShowQrCode(true)
@@ -333,16 +335,18 @@ export default function LoginForm() {
               )}
             </Button>
             
-            <div className="relative">
+            {/* 分隔线临时隐藏 */}
+            {/* <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-white/10" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-transparent px-2 text-white/50">或</span>
               </div>
-            </div>
+            </div> */}
             
-            <Button
+            {/* 微信扫码登录临时下线 */}
+            {/* <Button
               type="button"
               variant="outline"
               className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
@@ -360,7 +364,7 @@ export default function LoginForm() {
                   {isWechatEnv ? "微信登录" : "微信扫码登录"}
                 </>
               )}
-            </Button>
+            </Button> */}
             <div className="text-center text-sm text-white/70">
               还没有账户？{" "}
               <Link href="/auth/register" className="text-cyan-400 hover:text-cyan-300 hover:underline">

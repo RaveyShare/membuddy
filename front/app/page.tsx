@@ -521,12 +521,19 @@ export default function Home() {
             <Brain className="h-6 w-6 text-cyan-400" />
             <span className="font-bold">小杏仁记忆搭子</span>
           </div>
-          <p className="text-sm text-white/70">© {new Date().getFullYear()} 小杏仁. 保留所有权利.</p>
+          <div className="flex flex-col items-center space-y-1">
+            <p className="text-sm text-white/70">© {new Date().getFullYear()} 小杏仁. 保留所有权利.</p>
+            <p className="text-xs text-white/50">
+              <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400">
+                浙ICP备2024091992号-3
+              </a>
+            </p>
+          </div>
           <div className="flex space-x-6">
-            <Link className="text-sm text-white/70 hover:text-cyan-400" href="#">
+            <Link className="text-sm text-white/70 hover:text-cyan-400" href="/privacy">
               隐私政策
             </Link>
-            <Link className="text-sm text-white/70 hover:text-cyan-400" href="#">
+            <Link className="text-sm text-white/70 hover:text-cyan-400" href="/terms">
               使用条款
             </Link>
           </div>
