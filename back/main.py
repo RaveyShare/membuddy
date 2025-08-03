@@ -52,7 +52,7 @@ app.add_middleware(
         "https://front-d19hf1aa7-raveys-projects.vercel.app",  # Previous Vercel frontend
         "https://front-284p2e3tw-raveys-projects.vercel.app",  # Current Vercel frontend
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",  # Support all Vercel apps
+    # 移除 allow_origin_regex 以避免与 allow_origins 冲突
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
