@@ -251,7 +251,7 @@ class ZhipuProvider(BaseHTTPProvider):
     """智谱AI API适配器"""
     
     def __init__(self):
-        super().__init__("zhipu", os.getenv("ZHIPU_MODEL", "glm-4"))
+        super().__init__("zhipu", os.getenv("ZHIPU_MODEL", "glm-4.5-flash"))
         self.api_key = os.getenv("ZHIPU_API_KEY")
         self.base_url = os.getenv("ZHIPU_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
         

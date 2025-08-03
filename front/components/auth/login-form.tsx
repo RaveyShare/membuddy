@@ -182,12 +182,10 @@ export default function LoginForm() {
       if (isWechatEnv) {
         // 在微信环境中，引导用户到公众号授权页面
         const appId = process.env.NEXT_PUBLIC_WECHAT_MP_APP_ID
-        // 使用环境变量配置的回调地址，如果没有配置则使用默认值
+        // 使用环境变量或当前域名
         const redirectUri = encodeURIComponent(
           process.env.NEXT_PUBLIC_WECHAT_REDIRECT_URL || 
-          (process.env.NODE_ENV === 'production' 
-            ? 'https://membuddy.ravey.site/auth/wechat/callback'
-            : 'http://localhost:3000/auth/wechat/callback')
+          `${window.location.origin}/auth/wechat/callback`
         )
         const state = Math.random().toString(36).substring(2, 15)
         
