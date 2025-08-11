@@ -92,6 +92,27 @@ export const api = {
       return Promise.resolve();
     },
 
+    forgotPassword: async (email: string): Promise<void> => {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      await handleResponse(response)
+    },
+
+    resetPassword: async (token: string, newPassword: string): Promise<void> => {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: newPassword }),
+      })
+      await handleResponse(response)
+    },
+
     // WeChat login endpoints
     wechatMiniLogin: async (code: string, userInfo?: any): Promise<AuthResponse> => {
       const response = await fetchWithTimeout(`${API_BASE_URL}/auth/wechat/mini`, {

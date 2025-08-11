@@ -103,6 +103,6 @@ export interface ReviewSchedule {
 }
 
 export interface ReviewCompletionRequest {
-  quality: number; // 0-5 rating
-  notes?: string;
+  mastery: number; // 0-100 percentage
+  difficulty: string; // 'easy' | 'medium' | 'hard'
 }

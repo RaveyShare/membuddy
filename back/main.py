@@ -47,10 +47,6 @@ app.add_middleware(
         "http://localhost:3000",  # React frontend
         "http://localhost:8000",  # FastAPI backend
         "https://membuddy.ravey.site",  # Custom domain
-        "https://front-75934ladd-raveys-projects.vercel.app",  # Latest Vercel frontend
-        "https://front-4jsgo8xpz-raveys-projects.vercel.app",  # Previous Vercel frontend
-        "https://front-d19hf1aa7-raveys-projects.vercel.app",  # Previous Vercel frontend
-        "https://front-284p2e3tw-raveys-projects.vercel.app",  # Current Vercel frontend
     ],
     # 移除 allow_origin_regex 以避免与 allow_origins 冲突
     allow_credentials=True,
@@ -120,11 +116,32 @@ def login(user: schemas.UserLogin, supabase: Client = Depends(get_anon_supabase)
 @app.post("/api/auth/forgot-password", status_code=status.HTTP_200_OK)
 def forgot_password(payload: schemas.ForgotPasswordPayload, supabase: Client = Depends(get_anon_supabase)):
     try:
-        supabase.auth.reset_password_for_email(email=payload.email)
+        # 构建重置密码页面的URL
+        reset_url = f"{settings.FRONTEND_URL}/auth/reset-password"
+        
+        supabase.auth.reset_password_for_email(
+            email=payload.email,
+            options={"redirect_to": reset_url}
+        )
         return {"message": "Password reset email sent successfully."}
     except Exception as e:
         logger.error(f"Forgot password attempt for {payload.email} resulted in error: {e}")
         return {"message": "If an account with this email exists, a password reset link has been sent."}
+
+@app.post("/api/auth/reset-password", status_code=status.HTTP_200_OK)
+def reset_password(payload: schemas.ResetPasswordPayload, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
+    try:
+        # 使用当前用户的token更新密码
+        supabase.auth.update_user({
+            "password": payload.password
+        })
+        return {"message": "Password reset successfully."}
+    except AuthApiError as e:
+        logger.error(f"Reset password attempt for user {current_user['id']} resulted in error: {e}")
+        raise HTTPException(status_code=e.status, detail=e.message)
+    except Exception as e:
+        logger.error(f"Reset password attempt for user {current_user['id']} resulted in error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to reset password")
 
 # --- WeChat Auth Routes ---
 @app.post("/api/auth/wechat/mini", response_model=schemas.User)

@@ -215,9 +215,11 @@ export default function ReviewPage() {
     try {
       // 如果有当前复习计划，完成它
        if (currentSchedule) {
-         // 将掌握度转换为质量评分 (0-5)
-         const quality = Math.round(mastery / 20); // 0-100% -> 0-5
-         await api.completeReview(currentSchedule.id, { quality })
+         // 发送掌握度和难度给后端
+         await api.completeReview(currentSchedule.id, { 
+           mastery: mastery,
+           difficulty: difficulty 
+         })
        }
       
       // 将本地时间直接转换为 ISO 字符串（这已经是 UTC 时间）

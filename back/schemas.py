@@ -165,6 +165,9 @@ class ReviewCompletionRequest(BaseModel):
 class ForgotPasswordPayload(BaseModel):
     email: EmailStr
 
+class ResetPasswordPayload(BaseModel):
+    password: str
+
 # --- Share Schemas ---
 class ShareCreate(BaseModel):
     memory_item_id: uuid.UUID
