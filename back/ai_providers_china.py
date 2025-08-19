@@ -439,6 +439,103 @@ class BaichuanProvider(BaseHTTPProvider):
             self._log_error("generate_text", e)
             return None
 
+class DeepSeekProvider(BaseHTTPProvider):
+    """DeepSeek API适配器"""
+    
+    def __init__(self):
+        super().__init__("deepseek", os.getenv("DEEPSEEK_MODEL", "deepseek-chat"))
+        self.api_key = os.getenv("DEEPSEEK_API_KEY")
+        self.base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
+        
+        if not self.api_key:
+            raise ValueError("DEEPSEEK_API_KEY is required")
+    
+    def generate_memory_aids(self, content: str) -> Dict[str, Any]:
+        """生成记忆辅助内容"""
+        prompt = PromptTemplates.get_memory_aids_prompt(content, "zh")
+        
+        headers = self._get_headers()
+        headers["Authorization"] = f"Bearer {self.api_key}"
+        
+        data = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 4000,
+            "response_format": {"type": "json_object"}
+        }
+        
+        self._log_request("generate_memory_aids", len(prompt), 
+                         model=self.model)
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=self.timeout
+            )
+            
+            result = self._handle_response(response, "generate_memory_aids")
+            
+            if "choices" in result and len(result["choices"]) > 0:
+                content_text = result['choices'][0]['message']['content']
+                try:
+                    cleaned_text = self._clean_json_response(content_text)
+                    parsed_response = json.loads(cleaned_text)
+                    self._log_response("generate_memory_aids", len(str(parsed_response)))
+                    return parsed_response
+                except json.JSONDecodeError as e:
+                    self._log_error("generate_memory_aids", e, 
+                                   raw_response=content_text[:200])
+                    return self._get_default_memory_aids(content)
+            else:
+                raise Exception(f"Unexpected response format: {result}")
+                
+        except Exception as e:
+            self._log_error("generate_memory_aids", e)
+            return self._get_default_memory_aids(content)
+    
+    def generate_text(self, prompt: str) -> str:
+        """Generate text response from prompt"""
+        try:
+            headers = self._get_headers()
+            headers["Authorization"] = f"Bearer {self.api_key}"
+            
+            data = {
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.7,
+                "max_tokens": 1000
+            }
+            
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=self.timeout
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if "choices" in result and len(result["choices"]) > 0:
+                    return result['choices'][0]['message']['content']
+            return None
+                
+        except Exception as e:
+            self._log_error("generate_text", e)
+            return None
+
 class ChinaAIProviderFactory:
     """国内AI提供商工厂类"""
     
@@ -452,7 +549,8 @@ class ChinaAIProviderFactory:
             "qwen": QwenProvider,
             "ernie": ErnieProvider,
             "zhipu": ZhipuProvider,
-            "baichuan": BaichuanProvider
+            "baichuan": BaichuanProvider,
+            "deepseek": DeepSeekProvider
         }
         
         if provider_name not in providers:
@@ -494,6 +592,7 @@ __all__ = [
     "ErnieProvider",
     "ZhipuProvider",
     "BaichuanProvider",
+    "DeepSeekProvider",
     "AliyunTTSProvider",
     "TencentTTSProvider"
 ]

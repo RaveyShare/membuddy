@@ -111,12 +111,22 @@ class AIManager:
         """获取AI提供商实例"""
         if self._ai_provider is None:
             try:
-                if self.region == Region.CHINA:
+                use_mock = os.getenv("USE_MOCK_AI", "false").lower() == "true"
+                logger.info(f"🔍 USE_MOCK_AI environment variable: {os.getenv('USE_MOCK_AI', 'not set')}")
+                logger.info(f"🔍 use_mock boolean value: {use_mock}")
+                
+                if use_mock:
+                    logger.info("🎭 Initializing Mock AI Provider...")
+                    from mock_ai_provider import MockAIProvider
+                    self._ai_provider = MockAIProvider()
+                    logger.info("🎭 Using Mock AI Provider for fast development")
+                elif self.region == Region.CHINA:
                     from ai_providers_china import ChinaAIProviderFactory
                     self._ai_provider = ChinaAIProviderFactory.get_provider()
                 else:
                     from ai_providers_global import GlobalAIProviderFactory
                     self._ai_provider = GlobalAIProviderFactory.get_provider()
+                
                 logger.info(f"AI provider initialized: {type(self._ai_provider).__name__}")
             except Exception as e:
                 logger.error(f"Failed to initialize AI provider: {e}")

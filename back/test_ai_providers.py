@@ -5,7 +5,10 @@ AI Provider测试类
 
 import unittest
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+import os
+from unittest.mock import Mock, patch
+from .ai_providers_china import QwenProvider, ErnieProvider
+from .ai_providers_global import OpenAIProvider, ClaudeProvider
 import json
 import requests
 import os

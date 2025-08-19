@@ -198,6 +198,18 @@ class AudioGenerateRequest(BaseModel):
 
 class ImageGenerateResponse(BaseModel):
     prompt: str
+
+# --- WeChat Web App Login Schemas ---
+class WechatWebLoginRequest(BaseModel):
+    code: str
+    state: str
+
+class WechatQrCodeRequest(BaseModel):
+    redirect_uri: Optional[str] = None
+
+class WechatQrCodeResponse(BaseModel):
+    auth_url: str
+    state: str
     message: Optional[str] = None
     image_url: Optional[str] = None
     image_base64: Optional[str] = None

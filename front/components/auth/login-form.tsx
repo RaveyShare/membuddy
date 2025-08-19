@@ -34,6 +34,52 @@ export default function LoginForm() {
     const userAgent = navigator.userAgent.toLowerCase()
     const isWechat = userAgent.includes('micromessenger')
     setIsWechatEnv(isWechat)
+    
+    // 添加postMessage事件监听，处理微信授权回调
+    const handleMessage = (event: MessageEvent) => {
+      // 验证消息来源
+      if (event.origin !== window.location.origin) {
+        return
+      }
+      
+      if (event.data.type === 'WECHAT_LOGIN_SUCCESS') {
+        const { user, token } = event.data
+        
+        // 存储用户信息和token
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(user))
+        
+        // 关闭二维码对话框
+        setShowQrCode(false)
+        
+        // 显示成功提示
+        toast({
+          title: "登录成功",
+          description: `欢迎回来，${user.username || user.email}！`,
+        })
+        
+        // 刷新页面或跳转
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
+      } else if (event.data.type === 'WECHAT_LOGIN_ERROR') {
+        // 关闭二维码对话框
+        setShowQrCode(false)
+        
+        // 显示错误提示
+        toast({
+          title: "登录失败",
+          description: event.data.message || "微信登录失败，请重试",
+          variant: "destructive",
+        })
+      }
+    }
+    
+    window.addEventListener('message', handleMessage)
+    
+    return () => {
+      window.removeEventListener('message', handleMessage)
+    }
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -178,57 +224,54 @@ export default function LoginForm() {
 
     try {
       setIsWechatLoading(true)
+      console.log('Starting WeChat login process...')
       
-      if (isWechatEnv) {
-        // 在微信环境中，引导用户到公众号授权页面
-        const appId = process.env.NEXT_PUBLIC_WECHAT_MP_APP_ID
-        // 使用环境变量或当前域名
-        const redirectUri = encodeURIComponent(
-          process.env.NEXT_PUBLIC_WECHAT_REDIRECT_URL || 
-          `${window.location.origin}/auth/wechat/callback`
-        )
-        const state = Math.random().toString(36).substring(2, 15)
-        
-        // 保存state到localStorage用于验证
-        localStorage.setItem('wechat_state', state)
-        
-        const authUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_userinfo&state=${state}#wechat_redirect`
-        
-        window.location.href = authUrl
-      } else {
-        // 在非微信环境中，生成二维码
-        const appId = process.env.NEXT_PUBLIC_WECHAT_MP_APP_ID
-        // 使用环境变量配置的回调地址，如果没有配置则使用默认值
-        const redirectUri = encodeURIComponent(
-          process.env.NEXT_PUBLIC_WECHAT_REDIRECT_URL || 
-          (process.env.NODE_ENV === 'production' 
-            ? 'https://membuddy.ravey.site/auth/wechat/callback'
-            : 'http://localhost:3000/auth/wechat/callback')
-        )
-        console.log('重定向URI:', decodeURIComponent(redirectUri))
-        const state = Math.random().toString(36).substring(2, 15)
-        
-        // 保存state到localStorage用于验证
-        localStorage.setItem('wechat_state', state)
-        
-        const authUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_userinfo&state=${state}#wechat_redirect`
-        console.log('完整授权URL:', authUrl)
-        
-        setQrCodeUrl(authUrl)
+      // 调用后端API生成授权URL
+      const qrcodeUrl = `http://localhost:8000/api/auth/wechat/qrcode`
+      console.log('Requesting QR code from:', qrcodeUrl)
+      
+      const response = await fetch(qrcodeUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      console.log('QR code response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('QR code request failed:', errorText)
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+      
+      const data = await response.json()
+      console.log('QR code response data:', data)
+      
+      if (data.auth_url) {
+        console.log('Generated auth URL:', data.auth_url)
+        // 生成二维码并显示
+        setQrCodeUrl(data.auth_url)
         setShowQrCode(true)
+        
         // 延迟生成二维码，确保对话框已完全渲染
         setTimeout(async () => {
-          await generateQrCode(authUrl)
+          await generateQrCode(data.auth_url)
         }, 100)
-        startPolling(state)
+        
+        // 开始轮询检查登录状态
+        startPolling(data.state)
+      } else {
+        console.error('No auth_url in response:', data)
+        throw new Error('获取授权URL失败')
       }
     } catch (error) {
       console.error('WeChat login error:', error)
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
       toast({
         title: "微信登录失败",
-        description: "无法启动微信登录，请稍后重试",
+        description: `错误详情: ${errorMessage}`,
         variant: "destructive",
-        open: true,
       })
     } finally {
       setIsWechatLoading(false)
@@ -335,18 +378,18 @@ export default function LoginForm() {
               )}
             </Button>
             
-            {/* 分隔线临时隐藏 */}
-            {/* <div className="relative">
+            {/* 分隔线 */}
+            <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-white/10" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-transparent px-2 text-white/50">或</span>
               </div>
-            </div> */}
+            </div>
             
-            {/* 微信扫码登录临时下线 */}
-            {/* <Button
+            {/* 微信扫码登录 */}
+            <Button
               type="button"
               variant="outline"
               className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
@@ -364,7 +407,7 @@ export default function LoginForm() {
                   {isWechatEnv ? "微信登录" : "微信扫码登录"}
                 </>
               )}
-            </Button> */}
+            </Button>
             <div className="text-center text-sm text-white/70">
               还没有账户？{" "}
               <Link href="/auth/register" className="text-cyan-400 hover:text-cyan-300 hover:underline">

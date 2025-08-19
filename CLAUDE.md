@@ -11,6 +11,8 @@ MemBuddy is an AI-powered memory assistant with a dual-version architecture for 
 ### Backend (Python/FastAPI)
 ```bash
 cd back
+# 开启虚拟环境
+source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 

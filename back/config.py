@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     WECHAT_MP_APP_ID: str = os.getenv("WECHAT_MP_APP_ID", "")
     WECHAT_MP_APP_SECRET: str = os.getenv("WECHAT_MP_APP_SECRET", "")
     
+    # WeChat Web App Configuration
+    WECHAT_WEB_APP_ID: str = os.getenv("WECHAT_WEB_APP_ID", "")
+    WECHAT_WEB_APP_SECRET: str = os.getenv("WECHAT_WEB_APP_SECRET", "")
+    
     # Frontend
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://membuddy.ravey.site")
 
