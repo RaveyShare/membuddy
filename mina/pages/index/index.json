@@ -1,0 +1,12 @@
+{
+  "usingComponents": {
+    "auth-guard": "/components/auth-guard/auth-guard"
+  },
+  "navigationBarTitleText": "MemBuddy",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#f8fafc",
+  "backgroundTextStyle": "light",
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 50
+}

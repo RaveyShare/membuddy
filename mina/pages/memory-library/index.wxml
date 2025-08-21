@@ -1,0 +1,203 @@
+<view class="memory-library-page">
+  <!-- 顶部导航栏 -->
+  <view class="navbar">
+    <view class="navbar-content">
+      <view class="navbar-left" bindtap="goBack">
+        <text class="icon-arrow-left">‹</text>
+      </view>
+      <view class="navbar-title">记忆库</view>
+      <view class="navbar-right"></view>
+    </view>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="stats-container">
+    <view class="stats-grid">
+      <view class="stat-card">
+        <view class="stat-icon">📚</view>
+        <view class="stat-content">
+          <text class="stat-label">记忆项目</text>
+          <text class="stat-value">{{stats.totalItems}}</text>
+        </view>
+      </view>
+      <view class="stat-card">
+        <view class="stat-icon">🎯</view>
+        <view class="stat-content">
+          <text class="stat-label">平均掌握度</text>
+          <text class="stat-value">{{stats.averageMastery}}%</text>
+        </view>
+      </view>
+      <view class="stat-card">
+        <view class="stat-icon">⏰</view>
+        <view class="stat-content">
+          <text class="stat-label">总复习次数</text>
+          <text class="stat-value">{{stats.totalReviews}}</text>
+        </view>
+      </view>
+      <view class="stat-card">
+        <view class="stat-icon">⭐</view>
+        <view class="stat-content">
+          <text class="stat-label">收藏项目</text>
+          <text class="stat-value">{{stats.starredItems}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 搜索和筛选 -->
+  <view class="search-filter-container">
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input 
+        class="search-input" 
+        placeholder="搜索记忆项目..." 
+        value="{{searchQuery}}" 
+        bindinput="onSearchInput"
+      />
+    </view>
+    <view class="filter-row">
+      <picker 
+        class="filter-picker" 
+        mode="selector" 
+        range="{{categoryOptions}}" 
+        range-key="label" 
+        value="{{categoryIndex}}" 
+        bindchange="onCategoryChange"
+      >
+        <view class="picker-content">
+          <text class="filter-icon">📂</text>
+          <text class="filter-text">{{categoryOptions[categoryIndex].label}}</text>
+          <text class="picker-arrow">▼</text>
+        </view>
+      </picker>
+      <picker 
+        class="filter-picker" 
+        mode="selector" 
+        range="{{sortOptions}}" 
+        range-key="label" 
+        value="{{sortIndex}}" 
+        bindchange="onSortChange"
+      >
+        <view class="picker-content">
+          <text class="filter-icon">📊</text>
+          <text class="filter-text">{{sortOptions[sortIndex].label}}</text>
+          <text class="picker-arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+  </view>
+
+  <!-- 记忆项目列表 -->
+  <view class="memory-items-container">
+    <view wx:if="{{isLoading}}" class="loading-container">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+    
+    <view wx:elif="{{sortedItems.length === 0}}" class="empty-container">
+      <text class="empty-icon">🧠</text>
+      <text class="empty-text">没有找到匹配的记忆项目</text>
+    </view>
+    
+    <view wx:else class="memory-items-grid">
+      <view 
+        wx:for="{{sortedItems}}" 
+        wx:key="id" 
+        class="memory-item-card" 
+        bindtap="onItemTap" 
+        data-item="{{item}}"
+      >
+        <!-- 卡片头部 -->
+        <view class="card-header">
+          <view class="card-title-row">
+            <text class="card-title">{{item.title}}</text>
+            <view wx:if="{{item.starred}}" class="star-icon">⭐</view>
+          </view>
+          <view class="card-badges">
+            <text class="difficulty-badge difficulty-{{item.difficulty}}">{{item.difficulty}}</text>
+            <text class="category-badge">{{item.category}}</text>
+          </view>
+          <view class="card-actions" catchtap="onCardActions" data-item="{{item}}">
+            <text class="more-icon">⋯</text>
+          </view>
+        </view>
+        
+        <!-- 卡片内容 -->
+        <view class="card-content">
+          <text class="card-description">{{item.content}}</text>
+          
+          <!-- 标签 -->
+          <view wx:if="{{item.tags && item.tags.length > 0}}" class="tags-container">
+            <text 
+              wx:for="{{item.tags}}" 
+              wx:for-item="tag" 
+              wx:key="*this" 
+              class="tag"
+            >
+              {{tag}}
+            </text>
+          </view>
+          
+          <!-- 掌握度 -->
+          <view class="mastery-container">
+            <view class="mastery-row">
+              <text class="mastery-label">掌握度</text>
+              <text class="mastery-value mastery-{{item.masteryLevel}}">{{item.mastery}}%</text>
+            </view>
+            <view class="mastery-bar">
+              <view class="mastery-progress" style="width: {{item.mastery}}%"></view>
+            </view>
+          </view>
+          
+          <!-- 复习信息 -->
+          <view class="review-info">
+            <view class="review-date">
+              <text class="review-icon">📅</text>
+              <text class="review-text">{{item.nextReviewText}}</text>
+            </view>
+            <view class="review-time">
+              <text class="time-icon">⏰</text>
+              <text class="time-text">{{item.relativeTimeText}}</text>
+            </view>
+          </view>
+          
+          <!-- 操作按钮 -->
+          <view class="card-buttons">
+            <button 
+              class="btn btn-primary" 
+              bindtap="onStartReview" 
+              data-item="{{item}}"
+            >
+              开始复习
+            </button>
+            <button 
+              class="btn btn-secondary" 
+              bindtap="onViewDetails" 
+              data-item="{{item}}"
+            >
+              查看详情
+            </button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 操作菜单 -->
+  <view wx:if="{{showActionMenu}}" class="action-menu-overlay" bindtap="hideActionMenu">
+    <view class="action-menu" catchtap="">
+      <view class="action-item" bindtap="onViewDetails" data-item="{{selectedItem}}">
+        <text class="action-icon">👁️</text>
+        <text class="action-text">查看详情</text>
+      </view>
+      <view class="action-item" bindtap="onEditItem" data-item="{{selectedItem}}">
+        <text class="action-icon">✏️</text>
+        <text class="action-text">编辑</text>
+      </view>
+      <view class="action-item action-delete" bindtap="onDeleteItem" data-item="{{selectedItem}}">
+        <text class="action-icon">🗑️</text>
+        <text class="action-text">删除</text>
+      </view>
+    </view>
+  </view>
+</view>

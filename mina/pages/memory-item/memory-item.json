@@ -1,0 +1,12 @@
+{
+  "navigationBarTitleText": "记忆详情",
+  "navigationBarBackgroundColor": "#0f0f23",
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#0f0f23",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "loading-spinner": "/components/loading-spinner/loading-spinner",
+    "memory-aids-viewer": "/components/memory-aids-viewer/memory-aids-viewer",
+    "auth-guard": "/components/auth-guard/auth-guard"
+  }
+}

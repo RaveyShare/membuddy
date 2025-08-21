@@ -1,0 +1,210 @@
+<!--pages/review/review.wxml-->
+<view class="review-container">
+  <!-- 加载状态 -->
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-content">
+      <view class="loading-title"></view>
+      <view class="loading-text"></view>
+      <view class="loading-text"></view>
+      <view class="loading-meta"></view>
+    </view>
+  </view>
+
+  <!-- 主要内容 -->
+  <view wx:else class="content-container">
+    <!-- 头部统计 -->
+    <view class="stats-header">
+      <view class="stats-card">
+        <view class="stats-row">
+          <view class="stat-item">
+            <text class="stat-number">{{todayStats.completed}}</text>
+            <text class="stat-label">今日完成</text>
+          </view>
+          <view class="stat-divider"></view>
+          <view class="stat-item">
+            <text class="stat-number">{{todayStats.total}}</text>
+            <text class="stat-label">今日计划</text>
+          </view>
+          <view class="stat-divider"></view>
+          <view class="stat-item">
+            <text class="stat-number">{{todayStats.accuracy}}%</text>
+            <text class="stat-label">准确率</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 复习模式切换 -->
+      <view class="mode-switcher">
+        <view class="mode-tabs">
+          <view 
+            class="mode-tab {{reviewMode === 'normal' ? 'active' : ''}}"
+            data-mode="normal"
+            bindtap="switchMode"
+          >
+            <text class="mode-text">常规复习</text>
+          </view>
+          <view 
+            class="mode-tab {{reviewMode === 'quick' ? 'active' : ''}}"
+            data-mode="quick"
+            bindtap="switchMode"
+          >
+            <text class="mode-text">快速复习</text>
+          </view>
+          <view 
+            class="mode-tab {{reviewMode === 'intensive' ? 'active' : ''}}"
+            data-mode="intensive"
+            bindtap="switchMode"
+          >
+            <text class="mode-text">强化复习</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 无复习内容 -->
+    <view wx:if="{{totalCount === 0}}" class="empty-state">
+      <text class="empty-icon">🎉</text>
+      <text class="empty-title">太棒了！</text>
+      <text class="empty-desc">暂时没有需要复习的内容\n继续学习新知识吧</text>
+      <button class="go-home-btn" bindtap="goHome">
+        <text class="btn-text">返回首页</text>
+      </button>
+    </view>
+
+    <!-- 复习内容 -->
+    <view wx:elif="{{currentItem && !showResults}}" class="review-content">
+      <!-- 进度指示器 -->
+      <view class="progress-indicator">
+        <view class="progress-bar">
+          <view 
+            class="progress-fill" 
+            style="width: {{(currentIndex / totalCount) * 100}}%"
+          ></view>
+        </view>
+        <view class="progress-text">
+          <text class="current">{{currentIndex + 1}}</text>
+          <text class="separator">/</text>
+          <text class="total">{{totalCount}}</text>
+        </view>
+      </view>
+
+      <!-- 记忆项卡片 -->
+      <view class="memory-card">
+        <view class="card-header">
+          <text class="memory-title">{{currentItem.title}}</text>
+          <view class="card-actions">
+            <view class="action-btn" bindtap="viewMemoryItem">
+              <text class="action-icon">👁</text>
+            </view>
+            <view class="action-btn" bindtap="skipCurrent">
+              <text class="action-icon">⏭</text>
+            </view>
+          </view>
+        </view>
+        
+        <view class="card-content">
+          <text class="memory-content">{{currentItem.content}}</text>
+          
+          <!-- 记忆辅助预览 -->
+          <view wx:if="{{currentItem.memory_aids}}" class="aids-preview">
+            <text class="aids-label">💡 记忆提示</text>
+            <view wx:if="{{currentItem.memory_aids.mind_map}}" class="aid-item">
+              <text class="aid-type">思维导图</text>
+              <text class="aid-content">{{currentItem.memory_aids.mind_map.central_topic}}</text>
+            </view>
+            <view wx:if="{{currentItem.memory_aids.key_principles && currentItem.memory_aids.key_principles.length > 0}}" class="aid-item">
+              <text class="aid-type">关键原理</text>
+              <text class="aid-content">{{currentItem.memory_aids.key_principles[0].title}}</text>
+            </view>
+          </view>
+        </view>
+        
+        <view class="card-meta">
+          <text class="meta-item">分类：{{currentItem.category}}</text>
+          <text class="meta-separator">•</text>
+          <text class="meta-item">创建：{{currentItem.created_at}}</text>
+        </view>
+      </view>
+
+      <!-- 答案区域 -->
+      <view wx:if="{{!showAnswer}}" class="answer-section">
+        <button class="show-answer-btn" bindtap="showAnswer">
+          <text class="btn-text">显示记忆要点</text>
+        </button>
+        <text class="hint-text">先回忆一下，再查看要点</text>
+      </view>
+
+      <!-- 难度评级 -->
+      <view wx:else class="difficulty-section">
+        <view class="section-header">
+          <text class="section-title">回忆效果如何？</text>
+          <text class="section-desc">根据你的回忆情况选择难度</text>
+        </view>
+        
+        <view class="difficulty-options">
+          <view 
+            wx:for="{{difficultyOptions}}" 
+            wx:key="value"
+            class="difficulty-option"
+            style="border-color: {{item.color}}"
+            data-difficulty="{{item.value}}"
+            bindtap="submitReview"
+          >
+            <view class="option-header">
+              <text class="option-label" style="color: {{item.color}}">{{item.label}}</text>
+              <text class="option-desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 复习结果 -->
+    <view wx:elif="{{showResults}}" class="results-section">
+      <view class="results-header">
+        <text class="results-icon">🎯</text>
+        <text class="results-title">复习完成！</text>
+        <text class="results-desc">本轮复习统计</text>
+      </view>
+      
+      <view class="results-stats">
+        <view class="result-card">
+          <view class="result-item">
+            <text class="result-number">{{completedCount}}</text>
+            <text class="result-label">完成数量</text>
+          </view>
+          <view class="result-item">
+            <text class="result-number">{{todayStats.accuracy}}%</text>
+            <text class="result-label">准确率</text>
+          </view>
+          <view class="result-item">
+            <text class="result-number">{{totalCount}}</text>
+            <text class="result-label">总计划</text>
+          </view>
+        </view>
+      </view>
+      
+      <view class="results-actions">
+        <button class="continue-btn" bindtap="continueReview">
+          <text class="btn-text">继续复习</text>
+        </button>
+        <button class="home-btn" bindtap="goHome">
+          <text class="btn-text">返回首页</text>
+        </button>
+      </view>
+      
+      <view class="results-extra">
+        <view class="extra-actions">
+          <view class="extra-btn" bindtap="viewHistory">
+            <text class="extra-icon">📊</text>
+            <text class="extra-text">查看历史</text>
+          </view>
+          <view class="extra-btn" bindtap="shareResults">
+            <text class="extra-icon">📤</text>
+            <text class="extra-text">分享成果</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

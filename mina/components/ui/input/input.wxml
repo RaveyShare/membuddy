@@ -1,0 +1,50 @@
+<!-- components/ui/input/input.wxml -->
+<view class="input-container">
+  <!-- 标签 -->
+  <view wx:if="{{label}}" class="input-label">
+    <text>{{label}}</text>
+    <text wx:if="{{required}}" class="input-required">*</text>
+  </view>
+  
+  <!-- 输入框容器 -->
+  <view class="{{computedClass}}">
+    <!-- 左侧图标 -->
+    <view wx:if="{{leftIcon}}" class="input-icon input-icon-left" bindtap="handleLeftIconTap">
+      <text class="iconfont {{leftIcon}}"></text>
+    </view>
+    
+    <!-- 输入框 -->
+    <input
+      class="input-field"
+      type="{{type}}"
+      value="{{value}}"
+      placeholder="{{placeholder}}"
+      disabled="{{disabled}}"
+      maxlength="{{maxlength}}"
+      focus="{{focus}}"
+      bindinput="handleInput"
+      bindfocus="handleFocus"
+      bindblur="handleBlur"
+      bindconfirm="handleConfirm"
+    />
+    
+    <!-- 清除按钮 -->
+    <view 
+      wx:if="{{clearable && value && !disabled}}" 
+      class="input-icon input-clear" 
+      bindtap="handleClear"
+    >
+      <text class="iconfont icon-close"></text>
+    </view>
+    
+    <!-- 右侧图标 -->
+    <view wx:if="{{rightIcon}}" class="input-icon input-icon-right" bindtap="handleRightIconTap">
+      <text class="iconfont {{rightIcon}}"></text>
+    </view>
+  </view>
+  
+  <!-- 错误信息 -->
+  <view wx:if="{{error && errorMessage}}" class="input-error-message">
+    <text>{{errorMessage}}</text>
+  </view>
+</view>

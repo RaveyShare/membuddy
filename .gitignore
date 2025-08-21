@@ -49,3 +49,8 @@ ehthumbs.db
 Thumbs.db
 .idea/
 /back/service-account-key.json/gen-lang-client-0374473221-e19a8e500cef.json
+
+# 小程序配置文件 - 包含API地址等敏感信息
+mina/utils/api.js
+mina/utils/dev-config.js
+mina/project.private.config.json

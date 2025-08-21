@@ -16,8 +16,18 @@ class UserLogin(BaseModel):
     password: str
 
 # --- WeChat Login Schemas ---
+class UserInfo(BaseModel):
+    """微信小程序用户信息"""
+    nickname: Optional[str] = None
+    avatar_url: Optional[str] = None
+    gender: Optional[int] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    country: Optional[str] = None
+
 class WechatMiniLoginRequest(BaseModel):
     code: str
+    user_info: Optional[UserInfo] = None
     encrypted_data: Optional[str] = None
     iv: Optional[str] = None
 

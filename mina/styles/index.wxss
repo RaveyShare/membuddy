@@ -1,0 +1,309 @@
+/* ===== MemBuddy 微信小程序样式系统 ===== */
+/* 模拟 Tailwind CSS 风格的样式文件 */
+/* 版本: 1.0.0 */
+/* 作者: MemBuddy Team */
+
+/* ===== 导入样式文件 ===== */
+
+/* 主题变量和颜色系统 */
+@import "theme.wxss";
+
+/* 全局样式和工具类 */
+@import "global.wxss";
+
+/* 动画效果 */
+@import "animations.wxss";
+
+/* ===== 样式系统说明 ===== */
+/*
+
+使用方法:
+
+在页面的 .wxss 文件中引入:
+@import "../../styles/index.wxss";
+
+或者在 app.wxss 中全局引入:
+@import "styles/index.wxss";
+
+样式系统结构:
+
+1. 主题系统 (theme.wxss)
+- CSS 变量定义
+- 颜色系统 (primary, secondary, success, warning, error, gray)
+- 主题变体类 (theme-primary, theme-secondary 等)
+- 深色/浅色主题支持
+- 语义化颜色
+- 组件主题变量
+
+2. 工具类系统 (global.wxss)
+- 布局工具类 (flex, grid, position)
+- 间距工具类 (margin, padding)
+- 尺寸工具类 (width, height)
+- 文本工具类 (font-size, font-weight, text-align)
+- 颜色工具类 (text-color, background-color)
+- 边框工具类 (border-radius, border-width)
+- 阴影工具类
+- 组件样式类 (btn, card, input, badge 等)
+- 响应式工具类
+- 深色模式支持
+
+3. 动画系统 (animations.wxss)
+- 基础动画 (fade, scale, slide)
+- 特效动画 (bounce, pulse, spin, shake)
+- 高级动画 (flip, glow, gradient, float)
+- 动画控制类 (delay, duration, timing-function)
+- 组合动画 (bounce-in, bounce-out)
+
+设计原则:
+
+1. 一致性: 与 Web 端设计系统保持一致
+2. 可扩展性: 易于添加新的样式和组件
+3. 性能优化: 使用 rpx 单位，适配不同屏幕
+4. 易用性: 类似 Tailwind CSS 的命名规范
+5. 主题化: 支持深色/浅色主题切换
+
+命名规范:
+
+工具类命名:
+- 布局: flex, flex-col, justify-center, items-center
+- 间距: p-4, m-2, px-6, my-8
+- 尺寸: w-full, h-screen, max-w-sm
+- 文本: text-lg, font-bold, text-center
+- 颜色: text-primary, bg-white, border-gray-200
+
+组件类命名:
+- 按钮: btn, btn-primary, btn-sm, btn-lg
+- 卡片: card, card-glass, card-solid
+- 输入框: input
+- 徽章: badge, badge-primary, badge-success
+
+动画类命名:
+- 基础: animate-fade-in, animate-scale-up
+- 特效: animate-bounce, animate-pulse, animate-spin
+- 控制: animate-delay-200, animate-duration-300
+
+颜色系统:
+
+主色调:
+- Primary: #667eea (蓝紫色渐变)
+- Secondary: #764ba2 (紫色)
+
+状态色:
+- Success: #10b981 (绿色)
+- Warning: #f59e0b (黄色)
+- Error: #ef4444 (红色)
+- Info: #3b82f6 (蓝色)
+
+中性色:
+- Gray: #6b7280 系列 (50-900)
+
+扩展色:
+- Blue, Indigo, Purple, Pink, Cyan, Orange
+
+响应式设计:
+
+使用 rpx 单位确保在不同设备上的一致性:
+- 1rpx = 0.5px (在 iPhone 6 上)
+- 750rpx = 375px (设计稿宽度)
+
+主题切换:
+
+切换到深色主题:
+wx.setStorageSync('theme', 'dark');
+
+切换到浅色主题:
+wx.setStorageSync('theme', 'light');
+
+最佳实践:
+
+1. 优先使用工具类: 避免编写自定义 CSS
+2. 组合使用: 通过组合多个工具类实现复杂样式
+3. 保持一致: 使用统一的间距和颜色系统
+4. 性能考虑: 避免过度嵌套和复杂选择器
+5. 可维护性: 使用语义化的类名和组件
+
+示例用法:
+
+按钮示例:
+<button class="btn btn-primary btn-lg animate-bounce-in">
+  点击我
+</button>
+
+卡片示例:
+<view class="card p-6 m-4 animate-fade-in">
+  <text class="text-lg font-bold text-primary mb-2">标题</text>
+  <text class="text-sm text-gray-600">描述内容</text>
+</view>
+
+输入框示例:
+<input class="input mb-4" placeholder="请输入内容" />
+
+徽章示例:
+<view class="badge badge-success">成功</view>
+
+*/
+
+/* ===== 全局重置和基础样式 ===== */
+
+/* 确保所有元素使用 border-box */
+view, text, button, input, textarea, image, scroll-view {
+  box-sizing: border-box;
+}
+
+/* 页面基础样式 */
+page {
+  /* 使用主题变量 */
+  background: var(--bg-primary, #0f0f23);
+  color: var(--text-primary, #ffffff);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8rpx;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4rpx;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* ===== 实用工具类 ===== */
+
+/* 快速布局 */
+.container {
+  width: 100%;
+  max-width: 750rpx;
+  margin: 0 auto;
+  padding: 0 32rpx;
+}
+
+.section {
+  padding: 64rpx 0;
+}
+
+.section-sm {
+  padding: 32rpx 0;
+}
+
+.section-lg {
+  padding: 96rpx 0;
+}
+
+/* 快速间距 - 使用小程序支持的选择器 */
+.space .space-item:not(:first-child) {
+  margin-top: 16rpx;
+}
+
+.space-sm .space-item:not(:first-child) {
+  margin-top: 8rpx;
+}
+
+.space-lg .space-item:not(:first-child) {
+  margin-top: 32rpx;
+}
+
+/* 快速文本样式 */
+.title {
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 24rpx;
+}
+
+.subtitle {
+  font-size: 36rpx;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 16rpx;
+}
+
+.body {
+  font-size: 28rpx;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.caption {
+  font-size: 24rpx;
+  font-weight: 400;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+/* 快速状态样式 */
+.success {
+  color: var(--success-500);
+}
+
+.warning {
+  color: var(--warning-500);
+}
+
+.error {
+  color: var(--error-500);
+}
+
+.info {
+  color: var(--info-500);
+}
+
+/* 快速背景样式 */
+.bg-success {
+  background-color: var(--success-500);
+}
+
+.bg-warning {
+  background-color: var(--warning-500);
+}
+
+.bg-error {
+  background-color: var(--error-500);
+}
+
+.bg-info {
+  background-color: var(--info-500);
+}
+
+/* ===== 调试工具 ===== */
+
+/* 开发环境下显示网格 */
+.debug-grid {
+  background-image: 
+    linear-gradient(rgba(255, 0, 0, 0.1) 1rpx, transparent 1rpx),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.1) 1rpx, transparent 1rpx);
+  background-size: 20rpx 20rpx;
+}
+
+/* 显示元素边界 */
+.debug-border view,
+.debug-border text,
+.debug-border button,
+.debug-border input,
+.debug-border textarea,
+.debug-border image {
+  border: 1rpx solid rgba(255, 0, 0, 0.3) !important;
+}
+
+/* ===== 打印样式 ===== */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+}

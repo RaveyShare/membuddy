@@ -1,0 +1,28 @@
+<!--components/auth-guard/auth-guard.wxml-->
+<view class="auth-guard">
+  <!-- 检查中状态 -->
+  <view wx:if="{{checking}}" class="auth-checking">
+    <view class="loading-spinner animate-spin"></view>
+    <text class="loading-text">检查登录状态...</text>
+  </view>
+
+  <!-- 已认证状态 - 显示内容 -->
+  <view wx:elif="{{authenticated}}" class="auth-content">
+    <slot></slot>
+  </view>
+
+  <!-- 未认证状态 - 显示登录提示 -->
+  <view wx:else class="auth-login-prompt">
+    <view class="prompt-container">
+      <view class="prompt-icon">🔐</view>
+      <view class="prompt-title">需要登录</view>
+      <view class="prompt-text">{{loginText}}</view>
+      <button 
+        class="btn btn-primary btn-login"
+        bindtap="onLoginTap"
+      >
+        立即登录
+      </button>
+    </view>
+  </view>
+</view>

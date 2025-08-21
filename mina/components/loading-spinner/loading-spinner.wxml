@@ -1,0 +1,25 @@
+<!-- components/loading-spinner/loading-spinner.wxml -->
+<view class="loading-spinner" wx:if="{{visible}}">
+  <view class="spinner-card">
+    <view class="spinner-content">
+      <!-- 图标区域 -->
+      <view class="icon-container">
+        <view class="brain-icon" wx:if="{{showBrain}}">🧠</view>
+        <view class="loading-icon">⚡</view>
+      </view>
+
+      <!-- 文本区域 -->
+      <view class="text-container">
+        <text class="main-message">{{message}}</text>
+        <text class="sub-message">正在分析您的内容并生成个性化记忆方案{{currentDot}}</text>
+      </view>
+
+      <!-- 动画点 -->
+      <view class="dots-container">
+        <view class="dot dot-1"></view>
+        <view class="dot dot-2"></view>
+        <view class="dot dot-3"></view>
+      </view>
+    </view>
+  </view>
+</view>

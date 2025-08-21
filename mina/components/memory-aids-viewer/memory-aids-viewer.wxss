@@ -1,0 +1,368 @@
+/* components/memory-aids-viewer/memory-aids-viewer.wxss */
+.memory-aids-viewer {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16rpx;
+  backdrop-filter: blur(20rpx);
+  overflow: hidden;
+}
+
+/* 标签切换 */
+.tabs-container {
+  padding: 20rpx;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tabs-list {
+  display: flex;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12rpx;
+  padding: 8rpx;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx 8rpx;
+  border-radius: 8rpx;
+  transition: all 0.3s ease;
+}
+
+.tab-item.active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tab-icon {
+  font-size: 32rpx;
+  margin-bottom: 8rpx;
+}
+
+.tab-label {
+  font-size: 24rpx;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* 内容区域 */
+.tab-content {
+  padding: 30rpx;
+  min-height: 400rpx;
+}
+
+/* 思维导图 */
+.mindmap-container {
+  width: 100%;
+  height: 400rpx;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12rpx;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.mindmap-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+}
+
+.mindmap-node {
+  background: rgba(34, 211, 238, 0.2);
+  border: 2rpx solid #22d3ee;
+  border-radius: 8rpx;
+  padding: 16rpx 24rpx;
+  margin: 8rpx;
+}
+
+.root-node {
+  background: #22d3ee;
+  color: #000000;
+}
+
+.child-node {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: #8b5cf6;
+  color: #ffffff;
+}
+
+.node-text {
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+.mindmap-children {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 20rpx;
+}
+
+.preview-tip {
+  position: absolute;
+  bottom: 20rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 8rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 记忆口诀 */
+.mnemonics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.mnemonic-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12rpx;
+  padding: 24rpx;
+}
+
+.mnemonic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.mnemonic-title {
+  display: flex;
+  align-items: center;
+}
+
+.type-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.title-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #22d3ee;
+}
+
+.mnemonic-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.action-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8rpx;
+}
+
+.action-icon {
+  font-size: 24rpx;
+}
+
+.mnemonic-content {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.content-text {
+  font-size: 26rpx;
+  color: #ffffff;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.mnemonic-explanation {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.explanation-label {
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.explanation-text {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 感官联想 */
+.sensory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.sensory-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12rpx;
+  padding: 24rpx;
+}
+
+.sensory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.sensory-title {
+  display: flex;
+  align-items: center;
+}
+
+.sensory-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.sensory-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+/* 视觉联想 */
+.visual-item {
+  background: rgba(244, 114, 182, 0.1);
+  border: 1px solid rgba(244, 114, 182, 0.3);
+  border-radius: 8rpx;
+  padding: 20rpx;
+}
+
+.visual-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.visual-emoji {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.visual-dynasty {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #f472b6;
+}
+
+.visual-association {
+  font-size: 24rpx;
+  color: #ffffff;
+  line-height: 1.5;
+  margin-bottom: 16rpx;
+}
+
+.visual-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 听觉联想 */
+.auditory-item {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8rpx;
+  padding: 20rpx;
+}
+
+.auditory-header {
+  margin-bottom: 12rpx;
+}
+
+.auditory-dynasty {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #22c55e;
+}
+
+.auditory-sound,
+.auditory-rhythm {
+  display: block;
+  font-size: 24rpx;
+  color: #ffffff;
+  margin-bottom: 8rpx;
+}
+
+.auditory-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16rpx;
+}
+
+/* 触觉联想 */
+.tactile-item {
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 8rpx;
+  padding: 20rpx;
+}
+
+.tactile-header {
+  margin-bottom: 12rpx;
+}
+
+.tactile-dynasty {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #f97316;
+}
+
+.tactile-texture,
+.tactile-feeling {
+  display: block;
+  font-size: 24rpx;
+  color: #ffffff;
+  margin-bottom: 8rpx;
+}
+
+/* 生成按钮 */
+.generate-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6rpx;
+  padding: 8rpx 16rpx;
+  font-size: 20rpx;
+}
+
+.btn-icon {
+  font-size: 20rpx;
+}
+
+.btn-text {
+  color: #ffffff;
+  font-size: 20rpx;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200rpx;
+}
+
+.empty-text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
+}

@@ -1,0 +1,7 @@
+<!-- components/ui/card/card.wxml -->
+<view 
+  class="{{computedClass}}"
+  bindtap="handleTap"
+>
+  <slot></slot>
+</view>

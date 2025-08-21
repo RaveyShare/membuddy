@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "记忆库",
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 50,
+  "backgroundTextStyle": "light"
+}

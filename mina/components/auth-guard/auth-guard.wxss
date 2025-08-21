@@ -1,0 +1,89 @@
+/* components/auth-guard/auth-guard.wxss */
+
+.auth-guard {
+  width: 100%;
+  height: 100%;
+}
+
+/* 检查中状态 */
+.auth-checking {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-3xl);
+  min-height: 400rpx;
+}
+
+.loading-spinner {
+  width: 40rpx;
+  height: 40rpx;
+  border: 4rpx solid var(--border);
+  border-top: 4rpx solid var(--primary-500);
+  border-radius: 50%;
+  margin-bottom: var(--spacing-md);
+}
+
+.loading-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* 已认证内容 */
+.auth-content {
+  width: 100%;
+  height: 100%;
+}
+
+/* 登录提示 */
+.auth-login-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400rpx;
+  padding: var(--spacing-xl);
+}
+
+.prompt-container {
+  text-align: center;
+  max-width: 400rpx;
+}
+
+.prompt-icon {
+  font-size: 80rpx;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.6;
+}
+
+.prompt-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.prompt-text {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--spacing-xl);
+}
+
+.btn-login {
+  width: 200rpx;
+  margin: 0 auto;
+}
+
+/* 动画效果 */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}

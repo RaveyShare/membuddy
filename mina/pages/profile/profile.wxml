@@ -1,0 +1,216 @@
+<!--pages/profile/profile.wxml-->
+<view class="profile-container">
+  <!-- 加载状态 -->
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-content">
+      <view class="loading-avatar"></view>
+      <view class="loading-title"></view>
+      <view class="loading-text"></view>
+      <view class="loading-stats">
+        <view class="loading-stat"></view>
+        <view class="loading-stat"></view>
+        <view class="loading-stat"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 主要内容 -->
+  <view wx:else class="content-container">
+    <!-- 用户信息卡片 -->
+    <view class="user-card">
+      <view class="user-header">
+        <view class="avatar-section">
+          <image 
+            class="user-avatar" 
+            src="{{userInfo.avatar_url || '/images/default-avatar.png'}}"
+            mode="aspectFill"
+          />
+        </view>
+        
+        <view class="user-info">
+          <view wx:if="{{!editing}}" class="info-display">
+            <text class="user-name">{{userInfo.nickname || '未设置昵称'}}</text>
+            <text class="user-bio">{{userInfo.bio || '这个人很懒，什么都没留下'}}</text>
+            <view class="user-meta">
+              <text class="join-date">加入时间：{{userInfo.created_at}}</text>
+            </view>
+          </view>
+          
+          <view wx:else class="info-edit">
+            <view class="edit-group">
+              <input 
+                class="edit-input"
+                placeholder="请输入昵称"
+                value="{{editForm.nickname}}"
+                bindinput="onNicknameInput"
+                maxlength="20"
+              />
+            </view>
+            <view class="edit-group">
+              <textarea 
+                class="edit-textarea"
+                placeholder="介绍一下自己吧"
+                value="{{editForm.bio}}"
+                bindinput="onBioInput"
+                maxlength="100"
+              />
+            </view>
+          </view>
+        </view>
+        
+        <view class="user-actions">
+          <view wx:if="{{!editing}}" class="edit-btn" bindtap="startEdit">
+            <text class="edit-icon">✏️</text>
+          </view>
+          <view wx:else class="edit-actions">
+            <view class="save-btn" bindtap="saveEdit">
+              <text class="save-icon">✅</text>
+            </view>
+            <view class="cancel-btn" bindtap="cancelEdit">
+              <text class="cancel-icon">❌</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 统计数据 -->
+      <view class="stats-section">
+        <view class="stats-grid">
+          <view class="stat-item">
+            <text class="stat-number">{{stats.totalMemories}}</text>
+            <text class="stat-label">记忆项</text>
+          </view>
+          <view class="stat-divider"></view>
+          <view class="stat-item">
+            <text class="stat-number">{{stats.totalReviews}}</text>
+            <text class="stat-label">复习次数</text>
+          </view>
+          <view class="stat-divider"></view>
+          <view class="stat-item">
+            <text class="stat-number">{{stats.streakDays}}</text>
+            <text class="stat-label">连续天数</text>
+          </view>
+          <view class="stat-divider"></view>
+          <view class="stat-item">
+            <text class="stat-number">{{stats.accuracy}}%</text>
+            <text class="stat-label">准确率</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 功能菜单 -->
+    <view class="menu-section">
+      <view class="section-title">
+        <text class="title-text">功能菜单</text>
+      </view>
+      
+      <view class="menu-list">
+        <view 
+          wx:for="{{menuItems}}" 
+          wx:key="id"
+          class="menu-item"
+          data-item="{{item}}"
+          bindtap="onMenuItemTap"
+        >
+          <view class="menu-icon">
+            <text class="icon-text">{{item.icon}}</text>
+          </view>
+          <view class="menu-content">
+            <text class="menu-title">{{item.title}}</text>
+            <text class="menu-desc">{{item.desc}}</text>
+          </view>
+          <view class="menu-arrow">
+            <text class="arrow-icon">›</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 设置选项 -->
+    <view class="settings-section">
+      <view class="section-title">
+        <text class="title-text">设置</text>
+      </view>
+      
+      <view class="settings-list">
+        <view class="setting-item">
+          <view class="setting-info">
+            <text class="setting-title">消息通知</text>
+            <text class="setting-desc">接收重要消息提醒</text>
+          </view>
+          <switch 
+            class="setting-switch"
+            checked="{{settings.notifications}}"
+            data-setting="notifications"
+            bindchange="onSettingChange"
+          />
+        </view>
+        
+        <view class="setting-item">
+          <view class="setting-info">
+            <text class="setting-title">自动备份</text>
+            <text class="setting-desc">自动备份记忆数据</text>
+          </view>
+          <switch 
+            class="setting-switch"
+            checked="{{settings.autoBackup}}"
+            data-setting="autoBackup"
+            bindchange="onSettingChange"
+          />
+        </view>
+        
+        <view class="setting-item">
+          <view class="setting-info">
+            <text class="setting-title">复习提醒</text>
+            <text class="setting-desc">定时提醒复习记忆</text>
+          </view>
+          <switch 
+            class="setting-switch"
+            checked="{{settings.reviewReminder}}"
+            data-setting="reviewReminder"
+            bindchange="onSettingChange"
+          />
+        </view>
+        
+        <view class="setting-item">
+          <view class="setting-info">
+            <text class="setting-title">深色模式</text>
+            <text class="setting-desc">使用深色主题</text>
+          </view>
+          <switch 
+            class="setting-switch"
+            checked="{{settings.darkMode}}"
+            data-setting="darkMode"
+            bindchange="onSettingChange"
+          />
+        </view>
+      </view>
+    </view>
+
+    <!-- 其他操作 -->
+    <view class="actions-section">
+      <view class="action-list">
+        <view class="action-item" bindtap="shareApp">
+          <view class="action-icon">
+            <text class="icon-text">📤</text>
+          </view>
+          <view class="action-content">
+            <text class="action-title">分享应用</text>
+            <text class="action-desc">推荐给朋友使用</text>
+          </view>
+          <view class="action-arrow">
+            <text class="arrow-icon">›</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 退出登录 -->
+    <view class="logout-section">
+      <button class="logout-btn" bindtap="handleLogout">
+        <text class="logout-text">退出登录</text>
+      </button>
+    </view>
+  </view>
+</view>

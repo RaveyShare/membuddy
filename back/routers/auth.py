@@ -68,12 +68,14 @@ def reset_password(payload: schemas.ResetPasswordPayload, current_user: dict = D
         raise HTTPException(status_code=500, detail="Failed to reset password")
 
 # 微信认证路由
-@router.post("/wechat/mini", response_model=schemas.User)
+@router.post("/wechat/mini")
 def wechat_mini_login(request: schemas.WechatMiniLoginRequest, supabase: Client = Depends(get_anon_supabase)):
     """
     微信小程序登录
     """
     try:
+        logger.info(f"WeChat mini login attempt with code: {request.code[:10]}...")
+        
         # 1. 向微信服务器验证 code
         wx_url = "https://api.weixin.qq.com/sns/jscode2session"
         params = {
@@ -86,7 +88,10 @@ def wechat_mini_login(request: schemas.WechatMiniLoginRequest, supabase: Client 
         response = requests.get(wx_url, params=params)
         wx_data = response.json()
         
+        logger.info(f"WeChat API response: {wx_data}")
+        
         if "errcode" in wx_data:
+            logger.error(f"WeChat API error: {wx_data}")
             raise HTTPException(status_code=400, detail=f"WeChat API error: {wx_data.get('errmsg', 'Unknown error')}")
         
         openid = wx_data.get("openid")
@@ -94,6 +99,7 @@ def wechat_mini_login(request: schemas.WechatMiniLoginRequest, supabase: Client 
         session_key = wx_data.get("session_key")
         
         if not openid:
+            logger.error("Failed to get openid from WeChat")
             raise HTTPException(status_code=400, detail="Failed to get openid from WeChat")
         
         # 2. 查找或创建用户
@@ -103,51 +109,100 @@ def wechat_mini_login(request: schemas.WechatMiniLoginRequest, supabase: Client 
         
         existing_user = user_query.execute()
         
+        # 处理用户信息
+        user_nickname = None
+        user_avatar = None
+        if request.user_info:
+            user_nickname = request.user_info.nickname
+            user_avatar = request.user_info.avatar_url
+            logger.info(f"Received user info: nickname={user_nickname}, avatar={user_avatar}")
+        
         if existing_user.data:
             # 用户已存在，更新信息
             user_data = existing_user.data[0]
+            logger.info(f"Updating existing user: {user_data['id']}")
+            
             update_data = {
                 "wechat_openid": openid,
                 "wechat_unionid": unionid,
-                "wechat_nickname": request.user_info.nickname if request.user_info else None,
-                "wechat_avatar": request.user_info.avatar_url if request.user_info else None
+                "wechat_nickname": user_nickname,
+                "wechat_avatar": user_avatar
             }
+            
+            # 只更新非空字段
+            update_data = {k: v for k, v in update_data.items() if v is not None}
+            
             supabase.table("users").update(update_data).eq("id", user_data["id"]).execute()
             user_id = user_data["id"]
             email = user_data.get("email", f"wechat_{openid}@membuddy.local")
-            full_name = user_data.get("full_name") or (request.user_info.nickname if request.user_info else "微信用户")
+            full_name = user_data.get("full_name") or user_nickname or "微信用户"
+            wechat_openid = openid
+            wechat_unionid = unionid
+            wechat_nickname = user_nickname or user_data.get("wechat_nickname")
+            wechat_avatar = user_avatar or user_data.get("wechat_avatar")
         else:
             # 创建新用户
+            logger.info(f"Creating new user for openid: {openid}")
+            
             new_user_data = {
                 "id": str(uuid.uuid4()),
                 "email": f"wechat_{openid}@membuddy.local",
-                "full_name": request.user_info.nickname if request.user_info else "微信用户",
+                "full_name": user_nickname or "微信用户",
                 "wechat_openid": openid,
                 "wechat_unionid": unionid,
-                "wechat_nickname": request.user_info.nickname if request.user_info else None,
-                "wechat_avatar": request.user_info.avatar_url if request.user_info else None
+                "wechat_nickname": user_nickname,
+                "wechat_avatar": user_avatar
             }
             
             result = supabase.table("users").insert(new_user_data).execute()
             if not result.data:
+                logger.error("Failed to create user in database")
                 raise HTTPException(status_code=500, detail="Failed to create user")
             
             user_id = new_user_data["id"]
             email = new_user_data["email"]
             full_name = new_user_data["full_name"]
+            wechat_openid = openid
+            wechat_unionid = unionid
+            wechat_nickname = user_nickname
+            wechat_avatar = user_avatar
         
         # 3. 生成JWT token
-        access_token = jwt.encode({
+        # Access token (1天过期)
+        access_token_payload = {
             "sub": user_id,
             "email": email,
             "full_name": full_name,
+            "exp": datetime.utcnow().timestamp() + 86400  # 1天过期
+        }
+        access_token = jwt.encode(access_token_payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+        
+        # Refresh token (30天过期)
+        refresh_token_payload = {
+            "sub": user_id,
+            "type": "refresh",
             "exp": datetime.utcnow().timestamp() + 86400 * 30  # 30天过期
-        }, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+        }
+        refresh_token = jwt.encode(refresh_token_payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+        
+        # 构建用户对象
+        user_obj = schemas.User(
+            id=user_id,
+            email=email,
+            full_name=full_name,
+            wechat_openid=wechat_openid,
+            wechat_unionid=wechat_unionid,
+            wechat_nickname=wechat_nickname,
+            wechat_avatar=wechat_avatar
+        )
+        
+        logger.info(f"WeChat mini login successful for user: {user_id}")
         
         return {
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
-            "user": schemas.User(id=user_id, email=email, full_name=full_name)
+            "user": user_obj
         }
         
     except HTTPException:

@@ -1,0 +1,24 @@
+<svg width="120" height="120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景圆形 -->
+  <circle cx="60" cy="60" r="55" fill="url(#logoGradient)" stroke="#ffffff" stroke-width="2"/>
+  
+  <!-- 大脑图标 -->
+  <path d="M35 45 Q35 35 45 35 Q55 30 65 35 Q75 35 85 45 Q85 55 80 65 Q75 75 65 75 Q55 80 45 75 Q35 75 35 65 Q30 55 35 45 Z" 
+        fill="#ffffff" opacity="0.9"/>
+  
+  <!-- 记忆点 -->
+  <circle cx="45" cy="50" r="3" fill="#ffd700"/>
+  <circle cx="60" cy="45" r="3" fill="#ffd700"/>
+  <circle cx="75" cy="55" r="3" fill="#ffd700"/>
+  
+  <!-- 文字 M -->
+  <text x="60" y="95" font-family="Arial, sans-serif" font-size="24" font-weight="bold" 
+        text-anchor="middle" fill="#667eea">M</text>
+</svg>

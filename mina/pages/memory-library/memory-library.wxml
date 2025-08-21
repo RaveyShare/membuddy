@@ -1,0 +1,161 @@
+<!--pages/memory-library/memory-library.wxml-->
+<view class="memory-library-container">
+  <!-- 头部区域 -->
+  <view class="header">
+    <view class="header-content">
+      <view class="title-section">
+        <text class="page-title">记忆库</text>
+        <text class="memory-count">{{memories.length}} 条记忆</text>
+      </view>
+      
+      <view class="header-actions">
+        <view class="action-btn" bindtap="onToggleSearch">
+          <text class="icon">🔍</text>
+        </view>
+        <view class="action-btn" bindtap="onSortChange">
+          <text class="icon">📊</text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 搜索框 -->
+    <view class="search-section" wx:if="{{showSearch}}">
+      <view class="search-box">
+        <input 
+          class="search-input"
+          placeholder="搜索记忆内容..."
+          value="{{searchKeyword}}"
+          bindinput="onSearchInput"
+          bindconfirm="onSearch"
+        />
+        <view class="search-actions">
+          <view class="search-btn" bindtap="onSearch" wx:if="{{searchKeyword}}">
+            <text class="icon">🔍</text>
+          </view>
+          <view class="clear-btn" bindtap="onClearSearch" wx:if="{{searchKeyword}}">
+            <text class="icon">✕</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分类筛选 -->
+  <view class="categories-section">
+    <scroll-view class="categories-scroll" scroll-x="true">
+      <view class="categories-list">
+        <view 
+          class="category-item {{selectedCategory === item.id ? 'active' : ''}}"
+          wx:for="{{categories}}"
+          wx:key="id"
+          data-category="{{item.id}}"
+          bindtap="onCategoryChange"
+        >
+          <text class="category-name">{{item.name}}</text>
+          <text class="category-count" wx:if="{{item.count > 0}}">({{item.count}})</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 记忆项列表 -->
+  <view class="memories-section">
+    <!-- 加载状态 -->
+    <view class="loading-section" wx:if="{{loading && memories.length === 0}}">
+      <view class="loading-item" wx:for="{{[1,2,3]}}" wx:key="*this">
+        <view class="loading-avatar"></view>
+        <view class="loading-content">
+          <view class="loading-title"></view>
+          <view class="loading-desc"></view>
+          <view class="loading-meta"></view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 空状态 -->
+    <view class="empty-section" wx:if="{{!loading && memories.length === 0}}">
+      <view class="empty-icon">📚</view>
+      <text class="empty-title">暂无记忆内容</text>
+      <text class="empty-desc">{{searchKeyword ? '没有找到相关记忆' : '开始创建你的第一个记忆吧'}}</text>
+      <button class="btn btn-primary" bindtap="onCreateMemory" wx:if="{{!searchKeyword}}">
+        创建记忆
+      </button>
+    </view>
+    
+    <!-- 记忆项列表 -->
+    <view class="memories-list" wx:if="{{memories.length > 0}}">
+      <view 
+        class="memory-item"
+        wx:for="{{memories}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onViewMemory"
+      >
+        <view class="memory-content">
+          <view class="memory-header">
+            <text class="memory-title">{{item.title}}</text>
+            <view class="memory-actions" catchtap="">
+              <view class="action-btn" data-id="{{item.id}}" bindtap="onEditMemory">
+                <text class="icon">✏️</text>
+              </view>
+              <view class="action-btn" data-id="{{item.id}}" bindtap="onShareMemory">
+                <text class="icon">📤</text>
+              </view>
+              <view class="action-btn danger" data-id="{{item.id}}" bindtap="onDeleteMemory">
+                <text class="icon">🗑️</text>
+              </view>
+            </view>
+          </view>
+          
+          <view class="memory-body">
+            <text class="memory-content-text">{{item.content}}</text>
+          </view>
+          
+          <view class="memory-footer">
+            <view class="memory-meta">
+              <text class="meta-item">{{item.category || '未分类'}}</text>
+              <text class="meta-separator">•</text>
+              <text class="meta-item">{{item.created_at_formatted}}</text>
+              <text class="meta-separator" wx:if="{{item.memory_aids_count > 0}}">•</text>
+              <text class="meta-item" wx:if="{{item.memory_aids_count > 0}}">{{item.memory_aids_count}}个辅助工具</text>
+            </view>
+            
+            <view class="memory-tags" wx:if="{{item.tags && item.tags.length > 0}}">
+              <text 
+                class="tag"
+                wx:for="{{item.tags}}"
+                wx:for-item="tag"
+                wx:key="*this"
+              >
+                #{{tag}}
+              </text>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 记忆辅助预览 -->
+        <view class="memory-aids-preview" wx:if="{{item.memory_aids_count > 0}}">
+          <view class="aids-indicator">
+            <text class="aids-text">包含 {{item.memory_aids_count}} 个记忆辅助工具</text>
+            <text class="aids-arrow">→</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 加载更多 -->
+    <view class="load-more-section" wx:if="{{memories.length > 0}}">
+      <view class="load-more" wx:if="{{loading}}">
+        <text class="loading-text">加载中...</text>
+      </view>
+      <view class="no-more" wx:if="{{!hasMore && !loading}}">
+        <text class="no-more-text">没有更多内容了</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 浮动创建按钮 -->
+  <view class="fab" bindtap="onCreateMemory">
+    <text class="fab-icon">+</text>
+  </view>
+</view>

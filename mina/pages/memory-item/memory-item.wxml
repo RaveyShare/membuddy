@@ -1,0 +1,291 @@
+<!--pages/memory-item/memory-item.wxml-->
+<view class="memory-item-container">
+  <!-- 加载状态 -->
+  <view class="loading-container" wx:if="{{loading}}">
+    <view class="loading-content">
+      <view class="loading-title"></view>
+      <view class="loading-text"></view>
+      <view class="loading-text"></view>
+      <view class="loading-meta"></view>
+    </view>
+  </view>
+
+  <!-- 内容区域 -->
+  <view class="content-container" wx:if="{{!loading && memory}}">
+    <!-- 头部操作栏 -->
+    <view class="header-actions">
+      <view class="action-group">
+        <view class="action-btn" bindtap="onToggleEditMode">
+          <text class="icon">{{mode === 'edit' ? '👁️' : '✏️'}}</text>
+          <text class="action-text">{{mode === 'edit' ? '查看' : '编辑'}}</text>
+        </view>
+        
+        <view class="action-btn" bindtap="onShareMemory">
+          <text class="icon">📤</text>
+          <text class="action-text">分享</text>
+        </view>
+        
+        <view class="action-btn danger" bindtap="onDeleteMemory">
+          <text class="icon">🗑️</text>
+          <text class="action-text">删除</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 查看模式 -->
+    <view class="view-mode" wx:if="{{mode === 'view'}}">
+      <!-- 记忆项信息 -->
+      <view class="memory-card">
+        <view class="memory-header">
+          <text class="memory-title">{{memory.title}}</text>
+          <view class="memory-meta">
+            <text class="meta-item">{{memory.category || '未分类'}}</text>
+            <text class="meta-separator">•</text>
+            <text class="meta-item">{{memory.created_at_formatted}}</text>
+          </view>
+        </view>
+        
+        <view class="memory-content">
+          <text class="content-text">{{memory.content}}</text>
+        </view>
+        
+        <view class="memory-tags" wx:if="{{memory.tags && memory.tags.length > 0}}">
+          <text 
+            class="tag"
+            wx:for="{{memory.tags}}"
+            wx:for-item="tag"
+            wx:key="*this"
+          >
+            #{{tag}}
+          </text>
+        </view>
+        
+        <view class="memory-footer">
+          <text class="update-time">最后更新：{{memory.updated_at_formatted}}</text>
+          <view class="copy-btn" data-content="{{memory.content}}" bindtap="onCopyContent">
+            <text class="icon">📋</text>
+            <text class="copy-text">复制内容</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 记忆辅助工具 -->
+      <view class="memory-aids-section">
+        <view class="section-header">
+          <text class="section-title">记忆辅助工具</text>
+          <view class="generate-btn" bindtap="onGenerateMemoryAids" wx:if="{{!memoryAids}}">
+            <text class="btn-text">{{generating ? '生成中...' : 'AI生成'}}</text>
+          </view>
+        </view>
+        
+        <!-- 无记忆辅助状态 -->
+        <view class="no-aids" wx:if="{{!memoryAids && !generating}}">
+          <view class="no-aids-icon">🧠</view>
+          <text class="no-aids-title">暂无记忆辅助工具</text>
+          <text class="no-aids-desc">点击上方按钮，让AI为你生成专属的记忆辅助工具</text>
+        </view>
+        
+        <!-- 生成中状态 -->
+        <view class="generating-state" wx:if="{{generating}}">
+          <view class="generating-icon">🤖</view>
+          <text class="generating-text">AI正在为你生成记忆辅助工具...</text>
+        </view>
+        
+        <!-- 记忆辅助内容 -->
+        <view class="aids-content" wx:if="{{memoryAids && !generating}}">
+          <!-- 思维导图 -->
+          <view class="aid-section" wx:if="{{memoryAids.mind_map}}">
+            <view class="aid-header" data-section="mindMap" bindtap="onToggleSection">
+              <text class="aid-title">🗺️ 思维导图</text>
+              <text class="toggle-icon">{{expandedSections.mindMap ? '▼' : '▶'}}</text>
+            </view>
+            <view class="aid-content" wx:if="{{expandedSections.mindMap}}">
+              <view class="mind-map">
+                <view class="central-node">{{memoryAids.mind_map.central_topic}}</view>
+                <view class="branches">
+                  <view 
+                    class="branch"
+                    wx:for="{{memoryAids.mind_map.branches}}"
+                    wx:key="topic"
+                  >
+                    <text class="branch-topic">{{item.topic}}</text>
+                    <view class="sub-branches" wx:if="{{item.subtopics && item.subtopics.length > 0}}">
+                      <text 
+                        class="sub-branch"
+                        wx:for="{{item.subtopics}}"
+                        wx:for-item="subtopic"
+                        wx:key="*this"
+                      >
+                        {{subtopic}}
+                      </text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+              <view class="copy-btn" data-content="{{memoryAids.mind_map}}" bindtap="onCopyContent">
+                <text class="icon">📋</text>
+                <text class="copy-text">复制</text>
+              </view>
+            </view>
+          </view>
+          
+          <!-- 关键原理 -->
+          <view class="aid-section" wx:if="{{memoryAids.key_principles && memoryAids.key_principles.length > 0}}">
+            <view class="aid-header" data-section="keyPrinciples" bindtap="onToggleSection">
+              <text class="aid-title">🔑 关键原理</text>
+              <text class="toggle-icon">{{expandedSections.keyPrinciples ? '▼' : '▶'}}</text>
+            </view>
+            <view class="aid-content" wx:if="{{expandedSections.keyPrinciples}}">
+              <view 
+                class="principle-item"
+                wx:for="{{memoryAids.key_principles}}"
+                wx:key="principle"
+              >
+                <text class="principle-title">{{item.principle}}</text>
+                <text class="principle-explanation">{{item.explanation}}</text>
+                <text class="principle-example" wx:if="{{item.example}}">示例：{{item.example}}</text>
+              </view>
+            </view>
+          </view>
+          
+          <!-- 记忆场景 -->
+          <view class="aid-section" wx:if="{{memoryAids.memory_scenes && memoryAids.memory_scenes.length > 0}}">
+            <view class="aid-header" data-section="memoryScenes" bindtap="onToggleSection">
+              <text class="aid-title">🎬 记忆场景</text>
+              <text class="toggle-icon">{{expandedSections.memoryScenes ? '▼' : '▶'}}</text>
+            </view>
+            <view class="aid-content" wx:if="{{expandedSections.memoryScenes}}">
+              <view 
+                class="scene-item"
+                wx:for="{{memoryAids.memory_scenes}}"
+                wx:key="scene_description"
+              >
+                <text class="scene-title">场景 {{index + 1}}</text>
+                <text class="scene-description">{{item.scene_description}}</text>
+                <text class="scene-connection">关联：{{item.connection_to_content}}</text>
+              </view>
+            </view>
+          </view>
+          
+          <!-- 记忆法 -->
+          <view class="aid-section" wx:if="{{memoryAids.mnemonics && memoryAids.mnemonics.length > 0}}">
+            <view class="aid-header" data-section="mnemonics" bindtap="onToggleSection">
+              <text class="aid-title">🎯 记忆法</text>
+              <text class="toggle-icon">{{expandedSections.mnemonics ? '▼' : '▶'}}</text>
+            </view>
+            <view class="aid-content" wx:if="{{expandedSections.mnemonics}}">
+              <view 
+                class="mnemonic-item"
+                wx:for="{{memoryAids.mnemonics}}"
+                wx:key="technique"
+              >
+                <text class="mnemonic-technique">{{item.technique}}</text>
+                <text class="mnemonic-application">{{item.application}}</text>
+              </view>
+            </view>
+          </view>
+          
+          <!-- 感官联想 -->
+          <view class="aid-section" wx:if="{{memoryAids.sensory_associations && memoryAids.sensory_associations.length > 0}}">
+            <view class="aid-header" data-section="sensoryAssociations" bindtap="onToggleSection">
+              <text class="aid-title">👁️ 感官联想</text>
+              <text class="toggle-icon">{{expandedSections.sensoryAssociations ? '▼' : '▶'}}</text>
+            </view>
+            <view class="aid-content" wx:if="{{expandedSections.sensoryAssociations}}">
+              <view 
+                class="sensory-item"
+                wx:for="{{memoryAids.sensory_associations}}"
+                wx:key="sensory_type"
+              >
+                <text class="sensory-type">{{item.sensory_type}}</text>
+                <text class="sensory-description">{{item.description}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 编辑模式 -->
+    <view class="edit-mode" wx:if="{{mode === 'edit'}}">
+      <view class="edit-form">
+        <!-- 标题编辑 -->
+        <view class="form-group">
+          <text class="form-label">标题</text>
+          <input 
+            class="form-input"
+            placeholder="请输入记忆标题"
+            value="{{editForm.title}}"
+            bindinput="onTitleInput"
+            maxlength="100"
+          />
+        </view>
+        
+        <!-- 内容编辑 -->
+        <view class="form-group">
+          <text class="form-label">内容</text>
+          <textarea 
+            class="form-textarea"
+            placeholder="请输入记忆内容"
+            value="{{editForm.content}}"
+            bindinput="onContentInput"
+            maxlength="2000"
+            auto-height
+          />
+        </view>
+        
+        <!-- 分类选择 -->
+        <view class="form-group">
+          <text class="form-label">分类</text>
+          <picker 
+            class="form-picker"
+            range="{{categories}}"
+            range-key="label"
+            value="{{editForm.category}}"
+            bindchange="onCategoryChange"
+          >
+            <view class="picker-content">
+              <text class="picker-text">{{selectedCategoryLabel}}</text>
+              <text class="picker-arrow">▼</text>
+            </view>
+          </picker>
+        </view>
+        
+        <!-- 标签编辑 -->
+        <view class="form-group">
+          <view class="form-label-row">
+            <text class="form-label">标签</text>
+            <view class="add-tag-btn" bindtap="onAddTag">
+              <text class="add-icon">+</text>
+              <text class="add-text">添加标签</text>
+            </view>
+          </view>
+          <view class="tags-container" wx:if="{{editForm.tags.length > 0}}">
+            <view 
+              class="tag-item"
+              wx:for="{{editForm.tags}}"
+              wx:key="*this"
+              data-index="{{index}}"
+              bindtap="onRemoveTag"
+            >
+              <text class="tag-text">#{{item}}</text>
+              <text class="remove-icon">×</text>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 保存按钮 -->
+        <view class="form-actions">
+          <button 
+            class="btn btn-primary save-btn"
+            bindtap="onSaveEdit"
+            disabled="{{saving}}"
+            loading="{{saving}}"
+          >
+            {{saving ? '保存中...' : '保存修改'}}
+          </button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

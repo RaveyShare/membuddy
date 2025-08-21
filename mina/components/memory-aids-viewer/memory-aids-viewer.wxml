@@ -1,0 +1,169 @@
+<!-- components/memory-aids-viewer/memory-aids-viewer.wxml -->
+<view class="memory-aids-viewer" wx:if="{{visible && aids}}">
+  <!-- 头部标签切换 -->
+  <view class="tabs-container">
+    <view class="tabs-list">
+      <view 
+        class="tab-item {{currentTab === item.key ? 'active' : ''}}"
+        wx:for="{{tabs}}"
+        wx:key="key"
+        data-tab="{{item.key}}"
+        bindtap="switchTab"
+      >
+        <text class="tab-icon">{{item.icon}}</text>
+        <text class="tab-label">{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 思维导图内容 -->
+  <view class="tab-content" wx:if="{{currentTab === 'mindmap'}}">
+    <view class="mindmap-container" wx:if="{{aids.mindMap}}">
+      <view class="mindmap-preview" bindtap="previewMindMap">
+        <view class="mindmap-node root-node">
+          <text class="node-text">{{aids.mindMap.label}}</text>
+        </view>
+        <view class="mindmap-children" wx:if="{{aids.mindMap.children}}">
+          <view 
+            class="mindmap-node child-node"
+            wx:for="{{aids.mindMap.children}}"
+            wx:key="id"
+          >
+            <text class="node-text">{{item.label}}</text>
+          </view>
+        </view>
+        <view class="preview-tip">
+          <text>点击查看完整思维导图</text>
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无思维导图数据</text>
+    </view>
+  </view>
+
+  <!-- 记忆口诀内容 -->
+  <view class="tab-content" wx:if="{{currentTab === 'mnemonics'}}">
+    <view class="mnemonics-list" wx:if="{{mnemonicsWithIcons && mnemonicsWithIcons.length > 0}}">
+      <view 
+        class="mnemonic-item"
+        wx:for="{{mnemonicsWithIcons}}"
+        wx:key="id"
+      >
+        <view class="mnemonic-header">
+          <view class="mnemonic-title">
+            <text class="type-icon">{{item.typeIcon}}</text>
+            <text class="title-text">{{item.title}}</text>
+          </view>
+          <view class="mnemonic-actions">
+            <view class="action-btn" data-content="{{item.content}}" bindtap="onCopy">
+              <text class="action-icon">📋</text>
+            </view>
+            <view class="action-btn" data-type="mnemonic" data-content="{{item}}" bindtap="onShare">
+              <text class="action-icon">📤</text>
+            </view>
+          </view>
+        </view>
+        <view class="mnemonic-content">
+          <text class="content-text">{{item.content}}</text>
+        </view>
+        <view class="mnemonic-explanation" wx:if="{{item.explanation}}">
+          <text class="explanation-label">说明：</text>
+          <text class="explanation-text">{{item.explanation}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无记忆口诀数据</text>
+    </view>
+  </view>
+
+  <!-- 感官联想内容 -->
+  <view class="tab-content" wx:if="{{currentTab === 'sensory'}}">
+    <view class="sensory-list" wx:if="{{sensoryWithIcons && sensoryWithIcons.length > 0}}">
+      <view 
+        class="sensory-item"
+        wx:for="{{sensoryWithIcons}}"
+        wx:key="id"
+      >
+        <view class="sensory-header">
+          <view class="sensory-title">
+            <text class="type-icon">{{item.typeIcon}}</text>
+            <text class="title-text">{{item.title}}</text>
+          </view>
+          <view class="sensory-actions">
+            <view class="action-btn" bindtap="onCopy">
+              <text class="action-icon">📋</text>
+            </view>
+            <view class="action-btn" data-type="sensory" data-content="{{item}}" bindtap="onShare">
+              <text class="action-icon">📤</text>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 视觉联想 -->
+        <view class="sensory-content" wx:if="{{item.type === 'visual'}}">
+          <view 
+            class="visual-item"
+            wx:for="{{item.content}}"
+            wx:for-item="visual"
+            wx:key="dynasty"
+          >
+            <view class="visual-header">
+              <text class="visual-emoji">{{visual.image}}</text>
+              <text class="visual-dynasty">{{visual.dynasty}}</text>
+            </view>
+            <text class="visual-association">{{visual.association}}</text>
+            <view class="visual-actions">
+              <view class="generate-btn" data-content="{{visual.association}}" data-type="{{visual.dynasty}}" bindtap="generateImage">
+                <text class="btn-icon">🖼️</text>
+                <text class="btn-text">生成图片</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 听觉联想 -->
+        <view class="sensory-content" wx:if="{{item.type === 'auditory'}}">
+          <view 
+            class="auditory-item"
+            wx:for="{{item.content}}"
+            wx:for-item="auditory"
+            wx:key="dynasty"
+          >
+            <view class="auditory-header">
+              <text class="auditory-dynasty">{{auditory.dynasty}}</text>
+            </view>
+            <text class="auditory-sound">声音：{{auditory.sound}}</text>
+            <text class="auditory-rhythm">节奏：{{auditory.rhythm}}</text>
+            <view class="auditory-actions">
+              <view class="generate-btn" data-content="{{auditory.sound}}" data-type="{{auditory.dynasty}}" bindtap="generateAudio">
+                <text class="btn-icon">🎵</text>
+                <text class="btn-text">生成音频</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 触觉联想 -->
+        <view class="sensory-content" wx:if="{{item.type === 'tactile'}}">
+          <view 
+            class="tactile-item"
+            wx:for="{{item.content}}"
+            wx:for-item="tactile"
+            wx:key="dynasty"
+          >
+            <view class="tactile-header">
+              <text class="tactile-dynasty">{{tactile.dynasty}}</text>
+            </view>
+            <text class="tactile-texture">质感：{{tactile.texture}}</text>
+            <text class="tactile-feeling">感受：{{tactile.feeling}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无感官联想数据</text>
+    </view>
+  </view>
+</view>

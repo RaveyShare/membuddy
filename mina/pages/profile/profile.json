@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "个人中心",
+  "navigationBarBackgroundColor": "#0f0f23",
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#0f0f23",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "loading-spinner": "/components/loading-spinner/loading-spinner",
+    "auth-guard": "/components/auth-guard/auth-guard"
+  }
+}

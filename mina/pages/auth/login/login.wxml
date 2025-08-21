@@ -1,0 +1,85 @@
+<!--pages/auth/login/login.wxml-->
+<view class="login-container">
+  <!-- 头部区域 -->
+  <view class="header">
+    <view class="logo">
+      <image class="logo-image" src="/images/logo.png" mode="aspectFit" />
+    </view>
+    <view class="title">MemBuddy</view>
+    <view class="subtitle">AI记忆助手，让记忆变得更简单</view>
+  </view>
+
+  <!-- 登录区域 -->
+  <view class="login-section">
+    <view class="login-card">
+      <view class="card-header">
+        <text class="card-title">欢迎使用</text>
+        <text class="card-subtitle">请使用微信账号登录</text>
+      </view>
+      
+      <view class="login-methods">
+        <!-- 微信登录按钮 -->
+        <button 
+          class="btn btn-primary btn-wechat"
+          bindtap="onWechatLogin"
+          disabled="{{wechatLoading}}"
+          loading="{{wechatLoading}}"
+        >
+          <view class="btn-content">
+            <image class="btn-icon" src="/images/wechat-icon.png" mode="aspectFit" />
+            <text class="btn-text">{{wechatLoading ? '登录中...' : '微信快速登录'}}</text>
+          </view>
+        </button>
+        
+        <!-- 获取用户信息按钮 -->
+        <button 
+          class="btn btn-secondary btn-profile"
+          bindtap="onGetUserProfile"
+          disabled="{{wechatLoading}}"
+        >
+          <view class="btn-content">
+            <text class="btn-text">授权获取用户信息</text>
+          </view>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能介绍 -->
+  <view class="features-section">
+    <view class="features-title">核心功能</view>
+    <view class="features-list">
+      <view class="feature-item">
+        <view class="feature-icon">🧠</view>
+        <view class="feature-content">
+          <text class="feature-title">AI记忆辅助</text>
+          <text class="feature-desc">智能生成思维导图、记忆法和感官联想</text>
+        </view>
+      </view>
+      
+      <view class="feature-item">
+        <view class="feature-icon">📚</view>
+        <view class="feature-content">
+          <text class="feature-title">记忆库管理</text>
+          <text class="feature-desc">分类整理，轻松管理你的知识库</text>
+        </view>
+      </view>
+      
+      <view class="feature-item">
+        <view class="feature-icon">🔄</view>
+        <view class="feature-content">
+          <text class="feature-title">智能复习</text>
+          <text class="feature-desc">科学的间隔重复，提高记忆效率</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部信息 -->
+  <view class="footer">
+    <text class="footer-text">登录即表示同意</text>
+    <navigator url="/pages/terms/terms" class="footer-link">服务条款</navigator>
+    <text class="footer-text">和</text>
+    <navigator url="/pages/privacy/privacy" class="footer-link">隐私政策</navigator>
+  </view>
+</view>

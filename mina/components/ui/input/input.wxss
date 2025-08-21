@@ -1,0 +1,219 @@
+/* components/ui/input/input.wxss */
+
+/* 输入框容器 */
+.input-container {
+  width: 100%;
+  margin-bottom: 24rpx;
+}
+
+/* 标签样式 */
+.input-label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.input-required {
+  color: #ef4444;
+  margin-left: 4rpx;
+}
+
+/* 输入框包装器 */
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+  transition: all 0.3s ease;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+/* 输入框尺寸 */
+.input-sm {
+  height: 72rpx;
+  padding: 0 24rpx;
+}
+
+.input-default {
+  height: 80rpx;
+  padding: 0 32rpx;
+}
+
+.input-lg {
+  height: 88rpx;
+  padding: 0 40rpx;
+}
+
+/* 输入框变体 */
+.input-variant-default {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.input-variant-outline {
+  background: transparent;
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.input-variant-filled {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid transparent;
+}
+
+/* 输入框状态 */
+.input-focused {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 4rpx rgba(34, 211, 238, 0.1);
+}
+
+.input-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4rpx rgba(239, 68, 68, 0.1);
+}
+
+.input-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 输入框字段 */
+.input-field {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 28rpx;
+  color: #ffffff;
+  padding: 0;
+}
+
+.input-field::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 图标样式 */
+.input-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.3s ease;
+}
+
+.input-icon-left {
+  margin-right: 16rpx;
+}
+
+.input-icon-right {
+  margin-left: 16rpx;
+}
+
+.input-clear {
+  margin-left: 16rpx;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.input-clear:active {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.iconfont {
+  font-size: 32rpx;
+}
+
+/* 错误信息 */
+.input-error-message {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #ef4444;
+  line-height: 1.4;
+}
+
+/* 聚焦状态下的图标 */
+.input-focused .input-icon {
+  color: #22d3ee;
+}
+
+/* 错误状态下的图标 */
+.input-error .input-icon {
+  color: #ef4444;
+}
+
+/* 响应式设计 */
+@media (max-width: 750rpx) {
+  .input-sm {
+    height: 68rpx;
+    padding: 0 20rpx;
+  }
+  
+  .input-default {
+    height: 76rpx;
+    padding: 0 28rpx;
+  }
+  
+  .input-lg {
+    height: 84rpx;
+    padding: 0 36rpx;
+  }
+  
+  .input-field {
+    font-size: 26rpx;
+  }
+  
+  .input-label {
+    font-size: 26rpx;
+  }
+  
+  .input-error-message {
+    font-size: 22rpx;
+  }
+}
+
+/* 动画效果 */
+@keyframes input-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4rpx);
+  }
+  75% {
+    transform: translateX(4rpx);
+  }
+}
+
+.input-error {
+  animation: input-shake 0.5s ease-in-out;
+}
+
+/* 特殊效果 */
+.input-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+}
+
+.input-focused::before {
+  transform: translateX(100%);
+}
+
+/* 玻璃效果 */
+.input-variant-default,
+.input-variant-filled {
+  backdrop-filter: blur(10rpx);
+  -webkit-backdrop-filter: blur(10rpx);
+}

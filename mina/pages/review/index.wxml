@@ -1,0 +1,230 @@
+<!--pages/review/index.wxml-->
+<view class="review-page">
+  <!-- 导航栏 -->
+  <view class="navbar">
+    <view class="navbar-content">
+      <view class="navbar-left" bindtap="goBack">
+        <text class="icon-arrow-left">‹</text>
+      </view>
+      <text class="navbar-title">复习记忆</text>
+      <view class="navbar-right"></view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view wx:if="{{isLoading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 主要内容 -->
+  <view wx:else class="main-content">
+    <!-- 记忆项目信息 -->
+    <view class="memory-item-section">
+      <view class="memory-card">
+        <view class="card-header">
+          <text class="card-title">{{item.title}}</text>
+        </view>
+        <view class="card-content">
+          <textarea 
+            class="content-textarea"
+            value="{{editableContent}}"
+            placeholder="编辑记忆内容..."
+            bindinput="onContentInput"
+            auto-height
+            maxlength="-1"
+          ></textarea>
+        </view>
+      </view>
+
+      <!-- AI记忆辅助 -->
+      <view wx:if="{{item.memory_aids}}" class="memory-aids-card">
+        <view class="card-header">
+          <view class="header-title">
+            <text class="icon-eye">👁</text>
+            <text class="title-text">AI 记忆辅助</text>
+          </view>
+        </view>
+        <view class="card-content">
+          <!-- 关键词 -->
+          <view wx:if="{{item.memory_aids.keywords && item.memory_aids.keywords.length > 0}}" class="aids-section">
+            <text class="section-title">关键词</text>
+            <view class="keywords-list">
+              <text wx:for="{{item.memory_aids.keywords}}" wx:key="*this" class="keyword-tag">{{item}}</text>
+            </view>
+          </view>
+
+          <!-- 记忆技巧 -->
+          <view wx:if="{{item.memory_aids.techniques && item.memory_aids.techniques.length > 0}}" class="aids-section">
+            <text class="section-title">记忆技巧</text>
+            <view class="techniques-list">
+              <text wx:for="{{item.memory_aids.techniques}}" wx:key="*this" class="technique-item">• {{item}}</text>
+            </view>
+          </view>
+
+          <!-- 联想 -->
+          <view wx:if="{{item.memory_aids.associations && item.memory_aids.associations.length > 0}}" class="aids-section">
+            <text class="section-title">联想记忆</text>
+            <view class="associations-list">
+              <text wx:for="{{item.memory_aids.associations}}" wx:key="*this" class="association-item">{{item}}</text>
+            </view>
+          </view>
+
+          <!-- 例子 -->
+          <view wx:if="{{item.memory_aids.examples && item.memory_aids.examples.length > 0}}" class="aids-section">
+            <text class="section-title">例子</text>
+            <view class="examples-list">
+              <text wx:for="{{item.memory_aids.examples}}" wx:key="*this" class="example-item">{{item}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 复习状态更新 -->
+    <view class="review-status-section">
+      <!-- 当前状态卡片 -->
+      <view class="status-card">
+        <view class="card-header">
+          <view class="header-title">
+            <text class="icon-chart">📊</text>
+            <text class="title-text">当前状态</text>
+          </view>
+        </view>
+        <view class="card-content">
+          <view class="status-row">
+            <text class="status-label">下次复习</text>
+            <text class="status-value status-primary">{{nextReviewText}}</text>
+          </view>
+          <view class="status-row">
+            <text class="status-label">掌握度</text>
+            <text class="status-value status-success">{{item.mastery}}%</text>
+          </view>
+          <view class="status-row">
+            <text class="status-label">难度</text>
+            <view class="difficulty-badge difficulty-{{item.difficulty}}">{{difficultyText}}</view>
+          </view>
+          <view class="status-row">
+            <text class="status-label">分类</text>
+            <view class="category-badge">{{item.category}}</view>
+          </view>
+          <view wx:if="{{item.tags && item.tags.length > 0}}" class="status-row">
+            <text class="status-label">标签</text>
+            <view class="tags-container">
+              <text wx:for="{{item.tags}}" wx:key="*this" class="tag">{{item}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 更新复习状态 -->
+      <view class="update-card">
+        <view class="card-header">
+          <view class="header-title">
+            <text class="icon-wand">🪄</text>
+            <text class="title-text">更新复习状态</text>
+          </view>
+        </view>
+        <view class="card-content">
+          <!-- 掌握度滑块 -->
+          <view class="form-group">
+            <text class="form-label">本次掌握度: <text class="mastery-value">{{mastery}}%</text></text>
+            <slider 
+              class="mastery-slider"
+              value="{{mastery}}"
+              min="0"
+              max="100"
+              step="5"
+              show-value="{{false}}"
+              bindchange="onMasteryChange"
+              activeColor="#00d4ff"
+              backgroundColor="rgba(255,255,255,0.1)"
+            />
+          </view>
+
+          <!-- 难度评估 -->
+          <view class="form-group">
+            <text class="form-label">本次难度评估</text>
+            <view class="difficulty-options">
+              <view 
+                wx:for="{{difficultyOptions}}" 
+                wx:key="value"
+                class="difficulty-option {{difficulty === item.value ? 'selected' : ''}} difficulty-{{item.value}}"
+                data-value="{{item.value}}"
+                bindtap="onDifficultyChange"
+              >
+                <text class="option-text">{{item.label}}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 下次复习时间 -->
+          <view class="form-group">
+            <text class="form-label">下次复习时间</text>
+            <picker 
+              class="datetime-picker"
+              mode="multiSelector"
+              range="{{dateTimeRange}}"
+              value="{{dateTimeValue}}"
+              bindchange="onDateTimeChange"
+            >
+              <view class="picker-content">
+                <text class="picker-text">{{nextReviewDateText}}</text>
+                <text class="picker-arrow">▼</text>
+              </view>
+            </picker>
+          </view>
+
+          <!-- 分类选择 -->
+          <view class="form-group">
+            <text class="form-label">分类</text>
+            <picker 
+              class="category-picker"
+              range="{{categoryOptions}}"
+              value="{{categoryIndex}}"
+              bindchange="onCategoryChange"
+            >
+              <view class="picker-content">
+                <text class="icon-category">📁</text>
+                <text class="picker-text">{{category || '选择分类...'}}</text>
+                <text class="picker-arrow">▼</text>
+              </view>
+            </picker>
+          </view>
+
+          <!-- 标签管理 -->
+          <view class="form-group">
+            <text class="form-label">标签</text>
+            <view class="tag-input-row">
+              <input 
+                class="tag-input"
+                value="{{currentTag}}"
+                placeholder="添加新标签..."
+                bindinput="onTagInput"
+                bindconfirm="addTag"
+              />
+              <button class="tag-add-btn" bindtap="addTag">添加</button>
+            </view>
+            <view wx:if="{{tags && tags.length > 0}}" class="tags-list">
+              <view wx:for="{{tags}}" wx:key="*this" class="tag-item">
+                <text class="tag-text">{{item}}</text>
+                <text class="tag-remove" data-tag="{{item}}" bindtap="removeTag">×</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 完成按钮 -->
+          <button 
+            class="complete-btn {{isSubmitting ? 'loading' : ''}}"
+            bindtap="completeReview"
+            disabled="{{isSubmitting}}"
+          >
+            <text wx:if="{{isSubmitting}}" class="loading-icon">⟳</text>
+            <text wx:else class="save-icon">💾</text>
+            <text class="btn-text">{{isSubmitting ? '保存中...' : '完成并保存'}}</text>
+          </button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
