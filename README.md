@@ -13,7 +13,33 @@ MemBuddy 是一个基于AI的智能记忆助手，帮助用户通过思维导图
 
 ## 🚀 快速部署
 
-### 本地部署（推荐）
+### 一键部署脚本（推荐）
+
+项目提供了强大的一键部署脚本 `deploy.sh`，支持多种部署方式：
+
+```bash
+# 查看帮助信息
+./deploy.sh help
+
+# 完整部署流程（提交代码 + 构建镜像 + 推送 + 部署）
+./deploy.sh -h your-server.com deploy-full
+
+# 本地阿里云部署
+./deploy.sh deploy-local init    # 初始化环境
+./deploy.sh deploy-local deploy  # 部署应用
+
+# 分步骤操作
+./deploy.sh commit               # 提交代码
+./deploy.sh build                # 构建Docker镜像
+./deploy.sh push                 # 推送镜像
+./deploy.sh -h server deploy-docker  # Docker部署
+
+# 监控和维护
+./deploy.sh status               # 检查状态
+./deploy.sh logs                 # 查看日志
+```
+
+### 传统本地部署
 
 ```bash
 # 1. 克隆项目
@@ -34,19 +60,6 @@ cp back/.env.aliyun.example back/.env
 ./deploy-aliyun.sh status
 ```
 
-### 其他命令
-
-```bash
-# 查看日志
-./deploy-aliyun.sh logs
-
-# 更新应用
-./deploy-aliyun.sh update
-
-# 停止服务
-./deploy-aliyun.sh stop
-```
-
 ## 📁 项目结构
 
 ```
@@ -58,16 +71,23 @@ membuddy/
 │   ├── config.py                 # 配置管理
 │   ├── gemini.py                 # 主要业务逻辑
 │   ├── .env.aliyun.example       # 环境变量模板
+│   ├── push-to-dockerhub.sh      # Docker镜像构建脚本
 │   └── ...
 ├── front/                         # 前端代码
 │   ├── app/                      # Next.js 应用
 │   ├── components/               # React 组件
 │   └── ...
+├── mina/                          # 微信小程序代码
+│   ├── pages/                    # 小程序页面
+│   ├── utils/                    # 工具函数
+│   └── ...
 ├── nginx/                         # Nginx配置
 │   └── local-deploy.conf         # 本地部署配置模板
 ├── scripts/                       # 数据库脚本
-├── deploy-aliyun.sh              # 本地部署脚本
-└── LOCAL_DEPLOY_README.md        # 详细部署文档
+├── deploy.sh                     # 一键部署脚本（推荐）
+├── deploy-aliyun.sh              # 阿里云部署脚本
+├── DEPLOYMENT.md                 # 详细部署指南
+└── LOCAL_DEPLOY_README.md        # 本地部署文档
 ```
 
 ## ⚙️ 配置说明
@@ -93,8 +113,10 @@ membuddy/
 
 ## 📖 详细文档
 
+- 🚀 [一键部署指南](./DEPLOYMENT.md) - **推荐阅读**
 - 📋 [本地部署详细指南](./LOCAL_DEPLOY_README.md)
 - 🌐 [前端 Vercel 部署](./front/VERCEL_DEPLOY.md)
+- 🐳 [Docker 部署说明](./back/push-to-dockerhub.sh)
 
 ## 🔧 本地开发
 

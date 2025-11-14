@@ -46,6 +46,9 @@ Component({
     // 检查认证状态
     checkAuth() {
       const authenticated = isAuthenticated();
+      try {
+        console.log('AuthGuard:checkAuth', { authenticated });
+      } catch (_) {}
       this.setData({
         authenticated,
         checking: false
@@ -58,6 +61,7 @@ Component({
     // 设置认证状态监听器
     setupAuthListener() {
       this.removeAuthListener = addAuthListener(() => {
+        console.log('AuthGuard:监听到认证状态变化');
         this.checkAuth();
       });
     },

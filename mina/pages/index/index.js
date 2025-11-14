@@ -1,5 +1,10 @@
 // pages/index/index.js
 import { api } from '../../utils/api.js';
+import { 
+  isMockEnabled, setMockEnabled,
+  isAuthMockEnabled, setAuthMockEnabled,
+  getCurrentEnvConfig
+} from '../../utils/dev-config.js';
 import { requireAuth, getCurrentUser, isAuthenticated, addAuthListener } from '../../utils/auth.js';
 import { showToast, showLoading, hideLoading } from '../../utils/utils.js';
 import { formatTime } from '../../utils/format.js';
@@ -73,6 +78,10 @@ Page({
   // 页面加载
   onLoad(options) {
     console.log('首页加载');
+    try {
+      const { isAuthenticated } = require('../../utils/auth.js');
+      console.log('首页:onLoad isAuthenticated()', isAuthenticated());
+    } catch (_) {}
     
     // 初始化认证状态
     this.initAuth();
@@ -88,6 +97,7 @@ Page({
   initAuth() {
     const authenticated = isAuthenticated();
     const user = getCurrentUser();
+    console.log('首页:initAuth 状态', { authenticated, userExists: !!user });
     
     const updateData = {
       isAuthenticated: authenticated
@@ -104,8 +114,10 @@ Page({
   // 设置认证状态监听
   setupAuthListener() {
     addAuthListener(() => {
+      console.log('首页:认证状态发生变化，重新初始化');
       this.initAuth();
       if (this.data.isAuthenticated) {
+        console.log('首页:已认证，加载页面数据');
         this.loadPageData();
       }
     });
@@ -310,6 +322,77 @@ Page({
     const { card } = e.currentTarget.dataset;
     wx.navigateTo({
       url: card.path
+    });
+  },
+
+  // 设置按钮（切换 Mock 开关）
+  async onSettingsTap() {
+    const env = getCurrentEnvConfig();
+    const mockOn = isMockEnabled();
+    const authMockOn = isAuthMockEnabled();
+    const itemList = [
+      `切换 Mock API：${mockOn ? '当前开启' : '当前关闭'}`,
+      `切换登录接口 Mock：${authMockOn ? '当前开启' : '当前关闭'}`,
+      '查看当前配置'
+    ];
+    wx.showActionSheet({
+      itemList,
+      success: (res) => {
+        const idx = res.tapIndex;
+        if (idx === 0) {
+          const next = !mockOn;
+          setMockEnabled(next);
+          wx.showToast({ title: `Mock API已${next ? '开启' : '关闭'}`, icon: 'none' });
+          // 切换后刷新页面数据（不影响登录）
+          if (this.data.isAuthenticated) {
+            this.refreshData();
+          }
+        } else if (idx === 1) {
+          const next = !authMockOn;
+          setAuthMockEnabled(next);
+          wx.showToast({ title: `登录Mock已${next ? '开启' : '关闭'}`, icon: 'none' });
+        } else if (idx === 2) {
+          const info = `环境: ${env.isDev ? '开发' : '生产'}\n` +
+            `BaseURL: ${env.baseURL}\n` +
+            `Mock: ${isMockEnabled() ? 'ON' : 'OFF'}\n` +
+            `AuthMock: ${isAuthMockEnabled() ? 'ON' : 'OFF'}`;
+          wx.showModal({ title: '当前配置', content: info, showCancel: false });
+        }
+      }
+    });
+  },
+
+  // 快速保存
+  onQuickSave() {
+    if (!this.data.inputContent.trim()) {
+      wx.showToast({
+        title: '请输入内容',
+        icon: 'none'
+      });
+      return;
+    }
+    this.saveMemoryItem();
+  },
+
+  // 语音输入
+  onVoiceInput() {
+    wx.showToast({
+      title: '语音输入功能开发中',
+      icon: 'none'
+    });
+  },
+
+  // 登录
+  onLoginTap() {
+    wx.navigateTo({
+      url: '/pages/login/login'
+    });
+  },
+
+  // 注册
+  onRegisterTap() {
+    wx.navigateTo({
+      url: '/pages/register/register'
     });
   },
 

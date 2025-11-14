@@ -1,53 +1,46 @@
 from fastapi import APIRouter, HTTPException, Depends
-from supabase import Client
 import logging
 import uuid
 from typing import List, Optional
 from datetime import datetime, timedelta
 
 import schemas
-from dependencies import get_current_user, get_supabase_authed
-from routers.memory_items import get_memory_item
+from dependencies import get_current_user
+from mock_store import review_schedules as store_schedules, memory_items as store_items
 
 router = APIRouter(prefix="/api/review_schedules", tags=["reviews"])
 
 @router.get("", response_model=List[schemas.ReviewSchedule])
-def get_review_schedules(memory_item_id: Optional[uuid.UUID] = None, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
-    query = supabase.table("review_schedules").select("*").eq("user_id", current_user['id'])
+def get_review_schedules(memory_item_id: Optional[uuid.UUID] = None, current_user: dict = Depends(get_current_user)):
+    res = [s for s in store_schedules.values() if s["user_id"] == current_user["id"]]
     if memory_item_id:
-        query = query.eq("memory_item_id", str(memory_item_id))
-    res = query.order("review_date").execute()
-    return res.data
+        res = [s for s in res if s["memory_item_id"] == str(memory_item_id)]
+    res.sort(key=lambda x: x["review_date"])
+    return [schemas.ReviewSchedule.model_validate({**s, "created_at": datetime.fromisoformat(s["created_at"]), "review_date": datetime.fromisoformat(s["review_date"])}) for s in res]
 
 @router.post("/{schedule_id}/complete", response_model=schemas.MemoryItem)
-def complete_review(schedule_id: uuid.UUID, review_data: schemas.ReviewCompletionRequest, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
-    # 1. Mark schedule as complete
-    schedule_res = supabase.table("review_schedules").update({"completed": True}).eq("id", str(schedule_id)).eq("user_id", current_user['id']).execute()
-    if not schedule_res.data:
+def complete_review(schedule_id: uuid.UUID, review_data: schemas.ReviewCompletionRequest, current_user: dict = Depends(get_current_user)):
+    s = store_schedules.get(str(schedule_id))
+    if not s or s["user_id"] != current_user["id"]:
         raise HTTPException(status_code=404, detail="Review schedule not found.")
-    
-    memory_item_id = schedule_res.data[0]['memory_item_id']
-
-    # 2. Update the memory item's state
-    # This is a simplified update. A more robust solution might use a DB function.
-    item_res = supabase.table("memory_items").select("review_count").eq("id", memory_item_id).single().execute()
-    new_review_count = item_res.data['review_count'] + 1
-    
-    # Simple logic for next review date based on mastery
+    s["completed"] = True
+    memory_item_id = s['memory_item_id']
+    i = store_items.get(memory_item_id)
+    if not i or i["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Memory item not found")
+    new_review_count = int(i.get('review_count', 0)) + 1
     if review_data.mastery >= 90:
         next_review_delta = timedelta(days=30)
     elif review_data.mastery >= 70:
         next_review_delta = timedelta(days=14)
     else:
         next_review_delta = timedelta(days=3)
-
-    update_data = {
+    i.update({
         "mastery": review_data.mastery,
         "difficulty": review_data.difficulty,
         "review_count": new_review_count,
         "review_date": datetime.utcnow().isoformat(),
-        "next_review_date": (datetime.utcnow() + next_review_delta).isoformat()
-    }
-    supabase.table("memory_items").update(update_data).eq("id", memory_item_id).execute()
-
-    return get_memory_item(item_id=memory_item_id, current_user=current_user, supabase=supabase)
+        "next_review_date": (datetime.utcnow() + next_review_delta).isoformat(),
+        "updated_at": datetime.utcnow().isoformat()
+    })
+    return schemas.MemoryItem.model_validate(i)

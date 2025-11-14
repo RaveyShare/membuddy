@@ -1,205 +1,236 @@
 <!--pages/index/index.wxml-->
-<view class="index-container">
-  <!-- 头部区域 -->
-  <view class="header-section">
-    <view class="header-content">
-      <view class="app-title">
-        <text class="title-text">MemBuddy</text>
-        <text class="subtitle-text">AI记忆助手</text>
-      </view>
-      
-      <!-- 用户信息 -->
-      <view wx:if="{{isAuthenticated}}" class="user-info">
-        <view class="user-avatar">
-          <image 
-            class="avatar-image" 
-            src="{{currentUser.avatar_url || '/images/default-avatar.png'}}"
-            mode="aspectFill"
-          />
-        </view>
-        <view class="user-details">
-          <text class="user-name">{{currentUser.nickname || '用户'}}</text>
-          <text class="user-level">Lv.{{currentUser.level || 1}}</text>
-        </view>
-      </view>
-      
-      <!-- 今日统计 -->
-      <view class="today-stats">
-        <view class="stats-grid">
-          <view class="stat-item">
-            <text class="stat-number">{{todayStats.reviewed}}</text>
-            <text class="stat-label">已复习</text>
-          </view>
-          <view class="stat-divider"></view>
-          <view class="stat-item">
-            <text class="stat-number">{{todayStats.planned}}</text>
-            <text class="stat-label">计划</text>
-          </view>
-          <view class="stat-divider"></view>
-          <view class="stat-item">
-            <text class="stat-number">{{todayStats.accuracy}}%</text>
-            <text class="stat-label">准确率</text>
-          </view>
-        </view>
+<view class="index-container-modern animate-fade-in">
+  <!-- 背景装饰 -->
+  <view class="bg-decoration animate-float"></view>
+
+  <!-- 现代导航栏 -->
+  <view class="modern-navbar animate-fade-in-down">
+    <view class="navbar-content">
+      <text class="navbar-title animate-fade-in-left">小杏仁记忆搭子</text>
+      <view class="navbar-actions animate-fade-in-right">
+        <button class="settings-btn glass-btn hover-lift" bindtap="onSettingsTap">
+          <text class="btn-icon">⚙️</text>
+        </button>
       </view>
     </view>
   </view>
 
-  <!-- 主要内容 -->
+  <!-- Hero 区域（保留现代风格版本，移除重复旧版） -->
+  <view class="hero-section animate-fade-in-up">
+    <view class="hero-content glass-card hover-lift">
+      <text class="hero-title animate-fade-in-up animate-delay-1">AI 记忆助手</text>
+      <text class="hero-subtitle animate-fade-in-up animate-delay-2">让学习更高效，记忆更持久</text>
+
+      <view class="search-box animate-fade-in-up animate-delay-3">
+        <input class="search-input glass-input" placeholder="搜索记忆内容..." />
+        <button class="search-btn gradient-btn hover-scale">
+          <text class="btn-icon">🔍</text>
+        </button>
+      </view>
+
+      <view class="hero-actions animate-fade-in-up animate-delay-4">
+        <button class="primary-btn gradient-btn hover-scale" bindtap="onQuickReview">
+          <text class="btn-icon">⚡</text>
+          <text class="btn-text">快速复习</text>
+        </button>
+        <button class="secondary-btn glass-btn hover-scale" bindtap="onMemoryInput">
+          <text class="btn-icon">📝</text>
+          <text class="btn-text">记忆输入</text>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 主要内容（单一 main-content + 单一 auth-guard） -->
   <view class="main-content">
-    <!-- 认证保护的内容区域 -->
     <auth-guard auto-redirect="{{true}}">
-      <!-- 快速复习卡片 -->
-      <view wx:if="{{showQuickReview && quickReview}}" class="quick-review-card">
-      <view class="review-header">
-        <text class="review-title">⚡ 快速复习</text>
-        <view class="review-close" bindtap="skipQuickReview">
-          <text class="close-icon">✕</text>
+      <!-- 用户信息和统计 -->
+      <view class="user-stats-card glass-card">
+        <view class="user-info-section">
+          <view class="user-avatar-large">
+            <image 
+              class="avatar-image-large" 
+              src="{{currentUser.avatar_url || '/images/default-avatar.png'}}"
+              mode="aspectFill"
+            />
+          </view>
+          <view class="user-details-large">
+            <text class="user-name-large">{{currentUser.nickname || '用户'}}</text>
+            <view class="user-meta">
+              <text class="user-level-badge">Lv.{{currentUser.level || 1}}</text>
+              <text class="user-status status-online">在线</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="stats-grid-modern">
+          <view class="stat-item-modern">
+            <text class="stat-number-modern">{{todayStats.reviewed}}</text>
+            <text class="stat-label-modern">已复习</text>
+          </view>
+          <view class="stat-divider-modern"></view>
+          <view class="stat-item-modern">
+            <text class="stat-number-modern">{{todayStats.planned}}</text>
+            <text class="stat-label-modern">计划</text>
+          </view>
+          <view class="stat-divider-modern"></view>
+          <view class="stat-item-modern">
+            <text class="stat-number-modern">{{todayStats.accuracy}}%</text>
+            <text class="stat-label-modern">准确率</text>
+          </view>
         </view>
       </view>
-      
-      <view class="review-content">
-        <view class="memory-question">
-          <text class="question-text">{{quickReview.memory_item.title}}</text>
-        </view>
-        
-        <view wx:if="{{!quickReview.showAnswer}}" class="review-actions">
-          <button class="show-answer-btn" bindtap="showQuickReviewAnswer">
-            显示答案
-          </button>
-        </view>
-        
-        <view wx:else class="answer-section">
-          <view class="memory-answer">
-            <text class="answer-text">{{quickReview.memory_item.content}}</text>
+
+      <!-- 快速复习卡片 -->
+      <view wx:if="{{showQuickReview && quickReview}}" class="quick-review-card glass-card">
+        <view class="review-header-modern">
+          <text class="review-title-modern">⚡ 快速复习</text>
+          <view class="review-close-modern" bindtap="skipQuickReview">
+            <text class="close-icon-modern">✕</text>
           </view>
-          
-          <view class="difficulty-rating">
-            <text class="rating-label">回忆难度：</text>
-            <view class="rating-buttons">
+        </view>
+
+        <view class="review-content-modern">
+          <view class="memory-question-modern">
+            <text class="question-text-modern">{{quickReview.memory_item.title}}</text>
+          </view>
+
+          <view wx:if="{{!quickReview.showAnswer}}" class="review-actions-modern">
+            <button class="show-answer-btn-modern gradient-btn" bindtap="showQuickReviewAnswer">
+              显示答案
+            </button>
+          </view>
+
+          <view wx:else class="answer-section-modern">
+            <view class="memory-answer-modern">
+              <text class="answer-text-modern">{{quickReview.memory_item.content}}</text>
+            </view>
+
+            <view class="difficulty-rating-modern">
+              <text class="rating-label-modern">回忆难度：</text>
+              <view class="rating-buttons-modern">
+                <button 
+                  class="rating-btn-modern rating-easy"
+                  data-difficulty="1"
+                  bindtap="submitQuickReview"
+                >
+                  简单
+                </button>
+                <button 
+                  class="rating-btn-modern rating-normal"
+                  data-difficulty="2"
+                  bindtap="submitQuickReview"
+                >
+                  一般
+                </button>
+                <button 
+                  class="rating-btn-modern rating-hard"
+                  data-difficulty="3"
+                  bindtap="submitQuickReview"
+                >
+                  困难
+                </button>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 记忆输入区域 -->
+      <view class="input-section-modern">
+        <view class="input-card-modern glass-card">
+          <view class="input-header-modern">
+            <text class="input-title-modern">💡 记住新内容</text>
+          </view>
+
+          <view class="input-content-modern">
+            <textarea 
+              class="memory-input-modern glass-input"
+              placeholder="输入你想记住的内容..."
+              value="{{inputContent}}"
+              bindinput="onInputChange"
+              maxlength="1000"
+              auto-height
+            />
+
+            <view class="input-actions-modern">
               <button 
-                class="rating-btn easy"
-                data-difficulty="1"
-                bindtap="submitQuickReview"
+                class="action-btn-modern save-btn-modern gradient-btn"
+                bindtap="saveMemoryItem"
+                disabled="{{!inputContent.trim()}}"
               >
-                简单
+                💾 保存
               </button>
               <button 
-                class="rating-btn normal"
-                data-difficulty="2"
-                bindtap="submitQuickReview"
+                class="action-btn-modern generate-btn-modern glass-btn"
+                bindtap="generateMemoryAids"
+                disabled="{{!inputContent.trim() || generating}}"
               >
-                一般
-              </button>
-              <button 
-                class="rating-btn hard"
-                data-difficulty="3"
-                bindtap="submitQuickReview"
-              >
-                困难
+                <text wx:if="{{generating}}">🔄 生成中...</text>
+                <text wx:else>🤖 AI辅助</text>
               </button>
             </view>
           </view>
         </view>
       </view>
-      </view>
-
-      <!-- 记忆输入区域 -->
-      <view class="input-section">
-      <view class="input-card">
-        <view class="input-header">
-          <text class="input-title">💡 记住新内容</text>
-        </view>
-        
-        <view class="input-content">
-          <textarea 
-            class="memory-input"
-            placeholder="{{inputPlaceholder}}"
-            value="{{inputContent}}"
-            bindinput="onInputChange"
-            maxlength="1000"
-            auto-height
-          />
-          
-          <view class="input-actions">
-            <button 
-              class="action-btn save-btn"
-              bindtap="saveMemoryItem"
-              disabled="{{!inputContent.trim()}}"
-            >
-              💾 保存
-            </button>
-            <button 
-              class="action-btn generate-btn"
-              bindtap="generateMemoryAids"
-              disabled="{{!inputContent.trim() || generating}}"
-            >
-              <text wx:if="{{generating}}">🔄 生成中...</text>
-              <text wx:else>🤖 AI辅助</text>
-            </button>
-          </view>
-        </view>
-      </view>
-      </view>
 
       <!-- 记忆辅助预览 -->
-      <view wx:if="{{generatedAids}}" class="aids-preview">
-      <view class="preview-header">
-        <text class="preview-title">🎯 记忆辅助已生成</text>
-        <view class="preview-close" bindtap="closeAidsPreview">
-          <text class="close-icon">✕</text>
-        </view>
-      </view>
-      
-      <view class="aids-grid">
-        <view 
-          wx:for="{{aidTypes}}" 
-          wx:key="key"
-          wx:if="{{generatedAids[item.key]}}"
-          class="aid-item"
-          data-type="{{item.key}}"
-          bindtap="viewAidDetail"
-        >
-          <view class="aid-icon">
-            <text class="icon-text">{{item.icon}}</text>
+      <view wx:if="{{generatedAids}}" class="aids-preview-modern glass-card">
+        <view class="preview-header-modern">
+          <text class="preview-title-modern">🎯 记忆辅助已生成</text>
+          <view class="preview-close-modern" bindtap="closeAidsPreview">
+            <text class="close-icon-modern">✕</text>
           </view>
-          <text class="aid-label">{{item.label}}</text>
         </view>
-      </view>
-      
-      <view class="preview-tip">
-        <text class="tip-text">点击查看详细内容</text>
-      </view>
+
+        <view class="aids-grid-modern">
+          <view 
+            wx:for="{{aidTypes}}" 
+            wx:key="key"
+            wx:if="{{generatedAids[item.key]}}"
+            class="aid-item-modern"
+            data-type="{{item.key}}"
+            bindtap="viewAidDetail"
+          >
+            <view class="aid-icon-modern">
+              <text class="icon-text-modern">{{item.icon}}</text>
+            </view>
+            <text class="aid-label-modern">{{item.label}}</text>
+          </view>
+        </view>
+
+        <view class="preview-tip-modern">
+          <text class="tip-text-modern">点击查看详细内容</text>
+        </view>
       </view>
 
-    <!-- 功能卡片 -->
-    <view class="features-section">
-      <view class="section-header">
-        <text class="section-title">🚀 快速功能</text>
-      </view>
-      
-      <view class="features-grid">
-        <view 
-          wx:for="{{featureCards}}" 
-          wx:key="id"
-          class="feature-card"
-          style="border-left-color: {{item.color}}"
-          data-card="{{item}}"
-          bindtap="onFeatureCardTap"
-        >
-          <view class="feature-icon">
-            <text class="icon-text">{{item.icon}}</text>
-          </view>
-          <view class="feature-info">
-            <text class="feature-title">{{item.title}}</text>
-            <text class="feature-desc">{{item.desc}}</text>
-          </view>
-          <view class="feature-arrow">
-            <text class="arrow-icon">›</text>
+      <!-- 功能卡片 -->
+      <view class="features-section-modern">
+        <view class="section-header-modern">
+          <text class="section-title-modern">🚀 快速功能</text>
+        </view>
+
+        <view class="features-grid-modern">
+          <view 
+            wx:for="{{featureCards}}" 
+            wx:key="id"
+            class="feature-card-modern glass-card"
+            data-card="{{item}}"
+            bindtap="onFeatureCardTap"
+          >
+            <view class="feature-icon-modern">
+              <text class="icon-text-modern">{{item.icon}}</text>
+            </view>
+            <view class="feature-info-modern">
+              <text class="feature-title-modern">{{item.title}}</text>
+              <text class="feature-desc-modern">{{item.desc}}</text>
+            </view>
+            <view class="feature-arrow-modern">
+              <text class="arrow-icon-modern">›</text>
+            </view>
           </view>
         </view>
       </view>
-    </view>
 
       <!-- 最近记忆项 -->
       <view class="recent-section">
@@ -210,41 +241,41 @@
             <text class="action-arrow">›</text>
           </view>
         </view>
-      
-      <view wx:if="{{loadingRecent}}" class="loading-recent">
-        <view wx:for="{{[1,2,3]}}" wx:key="*this" class="loading-memory-item">
-          <view class="loading-title"></view>
-          <view class="loading-content"></view>
-          <view class="loading-meta"></view>
-        </view>
-      </view>
-      
-      <view wx:elif="{{recentMemories.length > 0}}" class="recent-list">
-        <view 
-          wx:for="{{recentMemories}}" 
-          wx:key="id"
-          class="recent-item"
-          data-memory="{{item}}"
-          bindtap="onRecentMemoryTap"
-        >
-          <view class="memory-content">
-            <text class="memory-title">{{item.title}}</text>
-            <text class="memory-preview">{{item.content}}</text>
-          </view>
-          <view class="memory-meta">
-            <text class="memory-category">{{item.category}}</text>
-            <text class="memory-time">{{item.updated_at}}</text>
+
+        <view wx:if="{{loadingRecent}}" class="loading-recent">
+          <view wx:for="{{[1,2,3]}}" wx:key="*this" class="loading-memory-item">
+            <view class="loading-title"></view>
+            <view class="loading-content"></view>
+            <view class="loading-meta"></view>
           </view>
         </view>
-      </view>
-      
-      <view wx:else class="empty-recent">
-        <view class="empty-icon">
-          <text class="icon-text">📝</text>
+
+        <view wx:elif="{{recentMemories.length > 0}}" class="recent-list">
+          <view 
+            wx:for="{{recentMemories}}" 
+            wx:key="id"
+            class="recent-item"
+            data-memory="{{item}}"
+            bindtap="onRecentMemoryTap"
+          >
+            <view class="memory-content">
+              <text class="memory-title">{{item.title}}</text>
+              <text class="memory-preview">{{item.content}}</text>
+            </view>
+            <view class="memory-meta">
+              <text class="memory-category">{{item.category}}</text>
+              <text class="memory-time">{{item.updated_at}}</text>
+            </view>
+          </view>
         </view>
-        <text class="empty-text">还没有记忆内容</text>
-        <text class="empty-desc">开始记录你想记住的内容吧</text>
-      </view>
+
+        <view wx:else class="empty-recent">
+          <view class="empty-icon">
+            <text class="icon-text">📝</text>
+          </view>
+          <text class="empty-text">还没有记忆内容</text>
+          <text class="empty-desc">开始记录你想记住的内容吧</text>
+        </view>
       </view>
     </auth-guard>
   </view>

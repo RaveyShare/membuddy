@@ -1,0 +1,122 @@
+<!--pages/theme-test/theme-test.wxml-->
+<view class="theme-test-container animate-fade-in">
+  <!-- 页面标题 -->
+  <view class="test-header animate-fade-in-down">
+    <text class="test-title">主题测试页面</text>
+    <text class="test-subtitle">验证所有组件在新主题下的显示效果</text>
+  </view>
+
+  <!-- 颜色系统测试 -->
+  <view class="test-section animate-fade-in-up">
+    <view class="section-title">🎨 颜色系统</view>
+    <view class="color-grid">
+      <view class="color-item primary-gradient">主色</view>
+      <view class="color-item secondary-gradient">次色</view>
+      <view class="color-item accent-gradient">强调色</view>
+      <view class="color-item success-gradient">成功</view>
+      <view class="color-item warning-gradient">警告</view>
+      <view class="color-item error-gradient">错误</view>
+    </view>
+  </view>
+
+  <!-- 玻璃拟态卡片测试 -->
+  <view class="test-section animate-fade-in-up animate-delay-1">
+    <view class="section-title">💎 玻璃拟态卡片</view>
+    <view class="glass-card-test">
+      <view class="glass-card">
+        <text class="card-title">标准玻璃卡片</text>
+        <text class="card-content">这是标准的玻璃拟态卡片，具有半透明背景和模糊效果</text>
+      </view>
+      <view class="glass-card hover-lift">
+        <text class="card-title">可悬浮玻璃卡片</text>
+        <text class="card-content">鼠标悬停时会有上升效果</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 按钮样式测试 -->
+  <view class="test-section animate-fade-in-up animate-delay-2">
+    <view class="section-title">🔘 按钮样式</view>
+    <view class="button-grid">
+      <button class="gradient-btn hover-scale">渐变按钮</button>
+      <button class="glass-btn hover-scale">玻璃按钮</button>
+      <button class="outline-btn hover-scale">边框按钮</button>
+      <button class="text-btn hover-scale">文字按钮</button>
+    </view>
+  </view>
+
+  <!-- 输入框测试 -->
+  <view class="test-section animate-fade-in-up animate-delay-3">
+    <view class="section-title">📝 输入框样式</view>
+    <view class="input-group">
+      <input class="glass-input" placeholder="玻璃拟态输入框" />
+      <input class="gradient-input" placeholder="渐变边框输入框" />
+      <input class="standard-input" placeholder="标准输入框" />
+    </view>
+  </view>
+
+  <!-- 认证守卫组件测试 -->
+  <view class="test-section animate-fade-in-up animate-delay-4">
+    <view class="section-title">🔐 认证守卫组件</view>
+    <view class="auth-test-container">
+      <!-- 检查中状态 -->
+      <view class="auth-checking-modern glass-card">
+        <view class="loading-spinner-modern animate-spin-modern"></view>
+        <text class="loading-text-modern">检查登录状态...</text>
+      </view>
+      
+      <!-- 未认证状态 -->
+      <view class="auth-login-prompt-modern">
+        <view class="prompt-container-modern glass-card">
+          <view class="prompt-icon-modern">🔐</view>
+          <view class="prompt-title-modern">需要登录</view>
+          <view class="prompt-text-modern">请先登录以使用完整功能</view>
+          <button class="login-btn-modern gradient-btn">立即登录</button>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 动画效果测试 -->
+  <view class="test-section animate-fade-in-up animate-delay-5">
+    <view class="section-title">✨ 动画效果</view>
+    <view class="animation-grid">
+      <view class="animation-item animate-bounce">
+        <text class="animation-icon">⚡</text>
+        <text class="animation-name">弹跳</text>
+      </view>
+      <view class="animation-item animate-pulse">
+        <text class="animation-icon">💫</text>
+        <text class="animation-name">脉冲</text>
+      </view>
+      <view class="animation-item animate-float">
+        <text class="animation-icon">🎈</text>
+        <text class="animation-name">浮动</text>
+      </view>
+      <view class="animation-item animate-glow">
+        <text class="animation-icon">⭐</text>
+        <text class="animation-name">发光</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 响应式设计测试 -->
+  <view class="test-section animate-fade-in-up animate-delay-6">
+    <view class="section-title">📱 响应式设计</view>
+    <view class="responsive-demo">
+      <view class="responsive-card">
+        <text class="responsive-text">在不同屏幕尺寸下自适应</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部操作 -->
+  <view class="test-actions animate-fade-in-up animate-delay-7">
+    <button class="primary-btn gradient-btn hover-scale" bindtap="onBackToIndex">
+      返回首页
+    </button>
+    <button class="secondary-btn glass-btn hover-scale" bindtap="onRefreshTheme">
+      刷新主题
+    </button>
+  </view>
+</view>

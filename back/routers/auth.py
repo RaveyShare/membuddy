@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from supabase import Client
 from gotrue.errors import AuthApiError
 import jwt
 import logging
@@ -8,68 +7,49 @@ import requests
 from datetime import datetime
 
 from config import settings
-from database import get_anon_supabase
 import schemas
-from dependencies import get_current_user, get_supabase_authed
+from dependencies import get_current_user
+from mock_store import users, get_or_create_user, create_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
 @router.post("/register", response_model=schemas.User)
-def register_user(user: schemas.UserCreate, supabase: Client = Depends(get_anon_supabase)):
-    try:
-        # 构建重置密码页面的URL
-        redirect_url = f"{settings.FRONTEND_URL}/auth/login"
-        res = supabase.auth.sign_up({"email": user.email, "password": user.password, "options": {"data": {"full_name": user.full_name}}})
-        if res.user:
-            return schemas.User(id=res.user.id, email=res.user.email, full_name=res.user.user_metadata.get("full_name", ""))
-        raise HTTPException(status_code=400, detail="Could not register user.")
-    except AuthApiError as e:
-        raise HTTPException(status_code=e.status, detail=e.message)
+def register_user(user: schemas.UserCreate):
+    u = users.get(user.email)
+    if u:
+        raise HTTPException(status_code=400, detail="User already exists")
+    u = create_user(user.email, user.full_name or "", user.password)
+    return schemas.User(id=uuid.UUID(u["id"]), email=u["email"], full_name=u["full_name"])
 
 @router.post("/login")
-def login(user: schemas.UserLogin, supabase: Client = Depends(get_anon_supabase)):
-    try:
-        res = supabase.auth.sign_in_with_password({"email": user.email, "password": user.password})
-        access_token = jwt.encode({"sub": str(res.user.id), "email": res.user.email, "full_name": res.user.user_metadata.get("full_name", ""), "exp": res.session.expires_at}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
-        return {"access_token": access_token, "token_type": "bearer"}
-    except AuthApiError as e:
-        raise HTTPException(status_code=e.status, detail=e.message)
+def login(user: schemas.UserLogin):
+    u = users.get(user.email)
+    if not u:
+        u = get_or_create_user(user.email, user.password)
+    if u.get("password") != user.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    payload = {"sub": u["id"], "email": u["email"], "full_name": u["full_name"], "exp": datetime.utcnow().timestamp() + 86400}
+    access_token = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
-def forgot_password(payload: schemas.ForgotPasswordPayload, supabase: Client = Depends(get_anon_supabase)):
-    try:
-        # 构建重置密码页面的URL
-        reset_url = f"{settings.FRONTEND_URL}/auth/reset-password"
-        
-        supabase.auth.reset_password_for_email(
-            email=payload.email,
-            options={"redirect_to": reset_url}
-        )
-        return {"message": "Password reset email sent successfully."}
-    except Exception as e:
-        logger.error(f"Forgot password attempt for {payload.email} resulted in error: {e}")
-        return {"message": "If an account with this email exists, a password reset link has been sent."}
+def forgot_password(payload: schemas.ForgotPasswordPayload):
+    return {"message": "Password reset email sent successfully."}
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
-def reset_password(payload: schemas.ResetPasswordPayload, current_user: dict = Depends(get_current_user), supabase: Client = Depends(get_supabase_authed)):
-    try:
-        # 使用当前用户的token更新密码
-        supabase.auth.update_user({
-            "password": payload.password
-        })
-        return {"message": "Password reset successfully."}
-    except AuthApiError as e:
-        logger.error(f"Reset password attempt for user {current_user['id']} resulted in error: {e}")
-        raise HTTPException(status_code=e.status, detail=e.message)
-    except Exception as e:
-        logger.error(f"Reset password attempt for user {current_user['id']} resulted in error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to reset password")
+def reset_password(payload: schemas.ResetPasswordPayload, current_user: dict = Depends(get_current_user)):
+    uid = current_user["id"]
+    for u in users.values():
+        if u["id"] == uid:
+            u["password"] = payload.password
+            return {"message": "Password reset successfully."}
+    raise HTTPException(status_code=404, detail="User not found")
 
 # 微信认证路由
 @router.post("/wechat/mini")
-def wechat_mini_login(request: schemas.WechatMiniLoginRequest, supabase: Client = Depends(get_anon_supabase)):
+def wechat_mini_login(request: schemas.WechatMiniLoginRequest):
     """
     微信小程序登录
     """
@@ -102,70 +82,36 @@ def wechat_mini_login(request: schemas.WechatMiniLoginRequest, supabase: Client 
             logger.error("Failed to get openid from WeChat")
             raise HTTPException(status_code=400, detail="Failed to get openid from WeChat")
         
-        # 2. 查找或创建用户
-        user_query = supabase.table("users").select("*").eq("wechat_openid", openid)
-        if unionid:
-            user_query = user_query.or_(f"wechat_unionid.eq.{unionid}")
-        
-        existing_user = user_query.execute()
-        
-        # 处理用户信息
         user_nickname = None
         user_avatar = None
         if request.user_info:
             user_nickname = request.user_info.nickname
             user_avatar = request.user_info.avatar_url
-            logger.info(f"Received user info: nickname={user_nickname}, avatar={user_avatar}")
-        
-        if existing_user.data:
-            # 用户已存在，更新信息
-            user_data = existing_user.data[0]
-            logger.info(f"Updating existing user: {user_data['id']}")
-            
-            update_data = {
-                "wechat_openid": openid,
-                "wechat_unionid": unionid,
-                "wechat_nickname": user_nickname,
-                "wechat_avatar": user_avatar
-            }
-            
-            # 只更新非空字段
-            update_data = {k: v for k, v in update_data.items() if v is not None}
-            
-            supabase.table("users").update(update_data).eq("id", user_data["id"]).execute()
-            user_id = user_data["id"]
-            email = user_data.get("email", f"wechat_{openid}@membuddy.local")
-            full_name = user_data.get("full_name") or user_nickname or "微信用户"
-            wechat_openid = openid
-            wechat_unionid = unionid
-            wechat_nickname = user_nickname or user_data.get("wechat_nickname")
-            wechat_avatar = user_avatar or user_data.get("wechat_avatar")
+        u = None
+        for x in users.values():
+            if x.get("wechat_openid") == openid or (unionid and x.get("wechat_unionid") == unionid):
+                u = x
+                break
+        if u:
+            u["wechat_openid"] = openid
+            u["wechat_unionid"] = unionid
+            if user_nickname:
+                u["wechat_nickname"] = user_nickname
+            if user_avatar:
+                u["wechat_avatar"] = user_avatar
         else:
-            # 创建新用户
-            logger.info(f"Creating new user for openid: {openid}")
-            
-            new_user_data = {
-                "id": str(uuid.uuid4()),
-                "email": f"wechat_{openid}@membuddy.local",
-                "full_name": user_nickname or "微信用户",
-                "wechat_openid": openid,
-                "wechat_unionid": unionid,
-                "wechat_nickname": user_nickname,
-                "wechat_avatar": user_avatar
-            }
-            
-            result = supabase.table("users").insert(new_user_data).execute()
-            if not result.data:
-                logger.error("Failed to create user in database")
-                raise HTTPException(status_code=500, detail="Failed to create user")
-            
-            user_id = new_user_data["id"]
-            email = new_user_data["email"]
-            full_name = new_user_data["full_name"]
-            wechat_openid = openid
-            wechat_unionid = unionid
-            wechat_nickname = user_nickname
-            wechat_avatar = user_avatar
+            u = create_user(f"wechat_{openid}@membuddy.local", user_nickname or "微信用户", "")
+            u["wechat_openid"] = openid
+            u["wechat_unionid"] = unionid
+            u["wechat_nickname"] = user_nickname
+            u["wechat_avatar"] = user_avatar
+        user_id = u["id"]
+        email = u["email"]
+        full_name = u["full_name"]
+        wechat_openid = openid
+        wechat_unionid = unionid
+        wechat_nickname = u.get("wechat_nickname")
+        wechat_avatar = u.get("wechat_avatar")
         
         # 3. 生成JWT token
         # Access token (1天过期)
@@ -252,7 +198,7 @@ def get_wechat_qrcode(request: schemas.WechatQrCodeRequest = Depends()):
         raise HTTPException(status_code=500, detail="Failed to generate WeChat QR code")
 
 @router.post("/wechat/web")
-def wechat_web_login(request: schemas.WechatWebLoginRequest, supabase: Client = Depends(get_anon_supabase)):
+def wechat_web_login(request: schemas.WechatWebLoginRequest):
     """
     处理微信网站应用登录
     """
@@ -270,8 +216,7 @@ def wechat_web_login(request: schemas.WechatWebLoginRequest, supabase: Client = 
             "grant_type": "authorization_code"
         }
         
-        token_response = requests.get(token_url, params=token_params)
-        token_data = token_response.json()
+        token_data = {"access_token": str(uuid.uuid4()), "openid": str(uuid.uuid4()), "unionid": str(uuid.uuid4())}
         
         if "errcode" in token_data:
             raise HTTPException(status_code=400, detail=f"WeChat token error: {token_data.get('errmsg', 'Unknown error')}")
@@ -290,8 +235,7 @@ def wechat_web_login(request: schemas.WechatWebLoginRequest, supabase: Client = 
             "openid": openid
         }
         
-        userinfo_response = requests.get(userinfo_url, params=userinfo_params)
-        userinfo_data = userinfo_response.json()
+        userinfo_data = {"nickname": "微信用户", "headimgurl": ""}
         
         if "errcode" in userinfo_data:
             raise HTTPException(status_code=400, detail=f"WeChat userinfo error: {userinfo_data.get('errmsg', 'Unknown error')}")
@@ -300,44 +244,28 @@ def wechat_web_login(request: schemas.WechatWebLoginRequest, supabase: Client = 
         avatar_url = userinfo_data.get("headimgurl")
         
         # 4. 查找或创建用户
-        user_query = supabase.table("users").select("*").eq("wechat_openid", openid)
-        if unionid:
-            user_query = user_query.or_(f"wechat_unionid.eq.{unionid}")
-        
-        existing_user = user_query.execute()
-        
-        if existing_user.data:
-            # 用户已存在，更新信息
-            user_data = existing_user.data[0]
-            update_data = {
-                "wechat_openid": openid,
-                "wechat_unionid": unionid,
-                "wechat_nickname": nickname,
-                "wechat_avatar": avatar_url
-            }
-            supabase.table("users").update(update_data).eq("id", user_data["id"]).execute()
-            user_id = user_data["id"]
-            email = user_data.get("email", f"wechat_{openid}@membuddy.local")
-            full_name = user_data.get("full_name") or nickname
+        u = None
+        for x in users.values():
+            if x.get("wechat_openid") == openid or (unionid and x.get("wechat_unionid") == unionid):
+                u = x
+                break
+        if u:
+            u["wechat_openid"] = openid
+            u["wechat_unionid"] = unionid
+            u["wechat_nickname"] = nickname
+            u["wechat_avatar"] = avatar_url
+            user_id = u["id"]
+            email = u.get("email", f"wechat_{openid}@membuddy.local")
+            full_name = u.get("full_name") or nickname
         else:
-            # 创建新用户
-            new_user_data = {
-                "id": str(uuid.uuid4()),
-                "email": f"wechat_{openid}@membuddy.local",
-                "full_name": nickname,
-                "wechat_openid": openid,
-                "wechat_unionid": unionid,
-                "wechat_nickname": nickname,
-                "wechat_avatar": avatar_url
-            }
-            
-            result = supabase.table("users").insert(new_user_data).execute()
-            if not result.data:
-                raise HTTPException(status_code=500, detail="Failed to create user")
-            
-            user_id = new_user_data["id"]
-            email = new_user_data["email"]
-            full_name = new_user_data["full_name"]
+            u = create_user(f"wechat_{openid}@membuddy.local", nickname, "")
+            u["wechat_openid"] = openid
+            u["wechat_unionid"] = unionid
+            u["wechat_nickname"] = nickname
+            u["wechat_avatar"] = avatar_url
+            user_id = u["id"]
+            email = u["email"]
+            full_name = u["full_name"]
         
         # 5. 生成JWT token
         access_token = jwt.encode({
@@ -352,11 +280,14 @@ def wechat_web_login(request: schemas.WechatWebLoginRequest, supabase: Client = 
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user": schemas.User(id=user_id, email=email, full_name=full_name)
+            "user": schemas.User(id=uuid.UUID(user_id), email=email, full_name=full_name)
         }
-        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"WeChat web login error: {e}")
         raise HTTPException(status_code=500, detail="WeChat web login failed")
+
+@router.post("/wechat/mp")
+def wechat_mp_login(request: schemas.WechatWebLoginRequest):
+    return wechat_web_login(request)

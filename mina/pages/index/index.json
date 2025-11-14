@@ -2,7 +2,8 @@
   "usingComponents": {
     "auth-guard": "/components/auth-guard/auth-guard"
   },
-  "navigationBarTitleText": "MemBuddy",
+  "navigationBarTitleText": "小杏仁记忆搭子",
+  "navigationStyle": "custom",
   "navigationBarBackgroundColor": "#ffffff",
   "navigationBarTextStyle": "black",
   "backgroundColor": "#f8fafc",

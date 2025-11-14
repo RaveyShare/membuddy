@@ -1,0 +1,303 @@
+/*******************************************************************************************
+ * 认证守卫组件 - 深色主题样式
+ * 适配现代深色设计风格
+ * @author ravey
+ *******************************************************************************************/
+
+/* 深色主题变量 */
+:root {
+  /* 背景色 */
+  --bg-primary: #000000;
+  --bg-secondary: #121212;
+  --bg-tertiary: #1A1A1A;
+  --bg-card: #1E1E1E;
+  --bg-glass: rgba(30, 30, 30, 0.8);
+  
+  /* 文本色 */
+  --text-primary: #FFFFFF;
+  --text-secondary: #BFBFBF;
+  --text-tertiary: #7A7A7A;
+  
+  /* 渐变色彩 */
+  --gradient-primary: linear-gradient(135deg, #44D1FF 0%, #4C7DFF 50%, #7A58FF 100%);
+  --gradient-purple: linear-gradient(135deg, #FFC0F0 0%, #C874F7 50%, #9B5EF7 100%);
+  
+  /* 边框和阴影 */
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-medium: rgba(255, 255, 255, 0.2);
+  --shadow-light: 0 4rpx 16rpx rgba(0, 0, 0, 0.3);
+  --shadow-medium: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
+  
+  /* 圆角 */
+  --radius-small: 12rpx;
+  --radius-medium: 20rpx;
+  --radius-large: 32rpx;
+  --radius-pill: 56rpx;
+  --radius-xl: 40rpx;
+  
+  /* 间距 */
+  --space-xs: 16rpx;
+  --space-sm: 24rpx;
+  --space-md: 32rpx;
+  --space-lg: 48rpx;
+  --space-xl: 64rpx;
+  --space-xxl: 80rpx;
+}
+
+/* 深色主题认证守卫容器 */
+.auth-guard-dark {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* 检查中状态 - 增强玻璃拟态效果 */
+.auth-guard-dark .auth-checking {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xxl);
+  min-height: 500rpx;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.08) 0%, 
+    rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(30rpx);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 16px 56px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 加载动画 - 增强渐变旋转效果 */
+.auth-guard-dark .loading-spinner {
+  width: 100rpx;
+  height: 100rpx;
+  border: 6rpx solid transparent;
+  border-top: 6rpx solid #44D1FF;
+  border-right: 6rpx solid #4C7DFF;
+  border-bottom: 6rpx solid #7A58FF;
+  border-radius: 50%;
+  margin-bottom: var(--space-lg);
+  background: conic-gradient(from 0deg, transparent, #44D1FF, #4C7DFF, #7A58FF, #9B5EF7, transparent);
+  position: relative;
+  animation: spin-gradient 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  box-shadow: 
+    0 0 30px rgba(68, 209, 255, 0.3),
+    inset 0 0 20px rgba(68, 209, 255, 0.1);
+}
+
+.auth-guard-dark .loading-spinner::before {
+  content: '';
+  position: absolute;
+  top: 8rpx;
+  left: 8rpx;
+  right: 8rpx;
+  bottom: 8rpx;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* 加载文本 - 增强效果 */
+.auth-guard-dark .loading-text {
+  font-size: 32rpx;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  background: linear-gradient(135deg, var(--text-secondary) 0%, var(--primary-color) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* 已认证内容 */
+.auth-guard-dark .auth-content {
+  width: 100%;
+  height: 100%;
+}
+
+/* 登录提示 - 增强现代化卡片设计 */
+.auth-guard-dark .auth-login-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 500rpx;
+  padding: var(--space-xxl);
+}
+
+.auth-guard-dark .prompt-container {
+  text-align: center;
+  max-width: 520rpx;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.03) 50%,
+    rgba(102, 126, 234, 0.05) 100%);
+  backdrop-filter: blur(25rpx);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xxl);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 锁图标 - 增强渐变效果 */
+.auth-guard-dark .prompt-icon {
+  font-size: 100rpx;
+  margin-bottom: var(--space-lg);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+  filter: 
+    drop-shadow(0 6rpx 12rpx rgba(68, 209, 255, 0.4))
+    drop-shadow(0 0 20rpx rgba(68, 209, 255, 0.2));
+  animation: lockFloat 3s ease-in-out infinite;
+}
+
+/* 标题 */
+.auth-guard-dark .prompt-title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+  letter-spacing: 1rpx;
+}
+
+/* 描述文本 */
+.auth-guard-dark .prompt-text {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-xl);
+  font-weight: 400;
+}
+
+/* 登录按钮 - 渐变样式 */
+.auth-guard-dark .btn-login {
+  width: 240rpx;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--gradient-primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: 30rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  box-shadow: 0 8rpx 24rpx rgba(68, 209, 255, 0.4);
+  transition: all 0.3s ease;
+  margin: 0 auto;
+}
+
+.auth-guard-dark .btn-login:hover {
+  transform: translateY(-2rpx);
+  box-shadow: 0 12rpx 32rpx rgba(68, 209, 255, 0.5);
+}
+
+.auth-guard-dark .btn-login:active {
+  transform: translateY(0);
+  box-shadow: 0 4rpx 16rpx rgba(68, 209, 255, 0.3);
+}
+
+/* 渐变旋转动画 */
+@keyframes spin-gradient {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 脉冲动画 */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+/* 锁图标浮动动画 */
+@keyframes lockFloat {
+  0%, 100% { 
+    transform: translateY(0); 
+  }
+  50% { 
+    transform: translateY(-8rpx); 
+  }
+}
+
+/* 淡入动画 */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(40rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 动画类 */
+.auth-guard-dark .animate-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.auth-guard-dark .animate-fadeIn {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* 响应式适配 */
+@media (max-width: 750rpx) {
+  .auth-guard-dark .prompt-container {
+    max-width: 90%;
+    padding: var(--space-lg);
+  }
+  
+  .auth-guard-dark .prompt-title {
+    font-size: 36rpx;
+  }
+  
+  .auth-guard-dark .prompt-text {
+    font-size: 26rpx;
+  }
+  
+  .auth-guard-dark .btn-login {
+    width: 200rpx;
+    font-size: 28rpx;
+  }
+}
+
+/* 特殊状态样式 */
+.auth-guard-dark .text-center {
+  text-align: center;
+}
+
+.auth-guard-dark .text-gradient {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 暗色模式下的玻璃拟态增强 */
+.auth-guard-dark .glass-effect {
+  background: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(20rpx);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-large);
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
+}

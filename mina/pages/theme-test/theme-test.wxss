@@ -1,0 +1,313 @@
+/***********************************************
+ * 主题测试页面样式
+ * 展示所有组件的样式效果
+ ***********************************************/
+
+/* 导入基础样式 */
+@import "../../styles/dark-theme.wxss";
+@import "../../styles/animations.wxss";
+
+/* 测试页面容器 */
+.theme-test-container {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  padding: 40rpx 30rpx;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.theme-test-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-gradient-1);
+  animation: backgroundShift 15s ease-in-out infinite;
+  z-index: -1;
+}
+
+/* 页面头部 */
+.test-header {
+  text-align: center;
+  margin-bottom: 60rpx;
+  padding: 40rpx 0;
+}
+
+.test-title {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.test-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+  opacity: 0.9;
+}
+
+/* 测试区块 */
+.test-section {
+  margin-bottom: 60rpx;
+}
+
+.section-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 30rpx;
+  text-align: center;
+}
+
+/* 颜色网格 */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20rpx;
+  margin-bottom: 40rpx;
+}
+
+.color-item {
+  height: 120rpx;
+  border-radius: var(--border-radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s ease;
+}
+
+.color-item:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 玻璃卡片测试 */
+.glass-card-test {
+  display: flex;
+  flex-direction: column;
+  gap: 30rpx;
+}
+
+.card-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 15rpx;
+  display: block;
+}
+
+.card-content {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* 按钮网格 */
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+}
+
+/* 输入框组 */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.gradient-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2rpx solid transparent;
+  border-radius: var(--border-radius-md);
+  padding: 20rpx 24rpx;
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  transition: all 0.3s ease;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.gradient-input::before {
+  content: '';
+  position: absolute;
+  top: -2rpx;
+  left: -2rpx;
+  right: -2rpx;
+  bottom: -2rpx;
+  background: var(--primary-gradient);
+  border-radius: var(--border-radius-md);
+  z-index: -1;
+}
+
+.gradient-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.2);
+}
+
+.standard-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2rpx solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 20rpx 24rpx;
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  transition: all 0.3s ease;
+}
+
+.standard-input:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 4rpx rgba(102, 126, 234, 0.2);
+}
+
+/* 认证测试容器 */
+.auth-test-container {
+  display: flex;
+  flex-direction: column;
+  gap: 40rpx;
+}
+
+/* 动画网格 */
+.animation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30rpx;
+}
+
+.animation-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 20rpx;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--border-radius-lg);
+  border: var(--glass-border);
+  box-shadow: var(--shadow-md);
+}
+
+.animation-icon {
+  font-size: 48rpx;
+  margin-bottom: 15rpx;
+}
+
+.animation-name {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* 响应式演示 */
+.responsive-demo {
+  display: flex;
+  justify-content: center;
+}
+
+.responsive-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--border-radius-lg);
+  border: var(--glass-border);
+  padding: 40rpx;
+  max-width: 500rpx;
+  width: 100%;
+  box-shadow: var(--shadow-md);
+}
+
+.responsive-text {
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* 底部操作 */
+.test-actions {
+  display: flex;
+  gap: 20rpx;
+  justify-content: center;
+  margin-top: 60rpx;
+  padding-bottom: 40rpx;
+}
+
+/* 响应式设计 */
+@media (max-width: 750rpx) {
+  .color-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .button-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .animation-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .test-actions {
+    flex-direction: column;
+  }
+}
+
+/* 额外按钮样式 */
+.outline-btn {
+  background: transparent;
+  border: 2rpx solid var(--primary-500);
+  color: var(--primary-500);
+  padding: 20rpx 40rpx;
+  border-radius: var(--border-radius-round);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.outline-btn:hover {
+  background: var(--primary-500);
+  color: var(--text-primary);
+  transform: translateY(-2rpx);
+  box-shadow: var(--shadow-md);
+}
+
+.text-btn {
+  background: transparent;
+  border: none;
+  color: var(--primary-500);
+  padding: 20rpx 40rpx;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.text-btn:hover {
+  color: var(--primary-400);
+  transform: translateY(-2rpx);
+}
+
+.text-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2rpx;
+  background: var(--primary-500);
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.text-btn:hover::after {
+  width: 80%;
+}
