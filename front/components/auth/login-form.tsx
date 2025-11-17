@@ -24,6 +24,7 @@ export default function LoginForm() {
   const [isWechatEnv, setIsWechatEnv] = useState(false)
   const [showQrCode, setShowQrCode] = useState(false)
   const [qrCodeUrl, setQrCodeUrl] = useState("")
+  const [wxacodeBase64, setWxacodeBase64] = useState<string>("")
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const { toast } = useToast()
@@ -224,10 +225,10 @@ export default function LoginForm() {
 
     try {
       setIsWechatLoading(true)
-      const { qrcodeId, qrContent } = await api.frontAuth.generateQr('web-app-001')
-      setQrCodeUrl(qrContent)
+      const { qrcodeId } = await api.frontAuth.generateQr('wxe6d828ae0245ab9c')
+      const wxacode = await api.frontAuth.generateWxacode('wxe6d828ae0245ab9c', qrcodeId)
+      setWxacodeBase64(wxacode.imageBase64)
       setShowQrCode(true)
-      setTimeout(async () => { await generateQrCode(qrContent) }, 50)
       // 轮询二维码状态
       const interval = setInterval(async () => {
         try {
@@ -429,7 +430,11 @@ export default function LoginForm() {
           </DialogHeader>
           <div className="flex flex-col items-center space-y-4 p-4">
             <div className="bg-white p-4 rounded-lg">
-              <canvas ref={canvasRef} />
+              {wxacodeBase64 ? (
+                <img src={`data:image/png;base64,${wxacodeBase64}`} alt="微信小程序码" className="w-52 h-52" />
+              ) : (
+                <canvas ref={canvasRef} />
+              )}
             </div>
             <div className="text-center space-y-2">
               <p className="text-white/80 text-sm">

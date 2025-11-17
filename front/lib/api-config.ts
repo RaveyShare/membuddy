@@ -57,6 +57,16 @@ export const api = {
       if (res.code !== 200) throw new Error('生成二维码失败')
       return res.data
     },
+    generateWxacode: async (appId: string, qrcodeId: string, page = 'pages/auth/login/login', width = 430): Promise<{ qrcodeId: string; expireAt: number; imageBase64: string }> => {
+      const response = await fetchWithTimeout(`${API_BASE_URL.replace(/\/api$/, '')}/front/auth/qr/wxacode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId, qrcodeId, page, width }),
+      }, 10000)
+      const res = await handleResponse<{ code: number; data: { qrcodeId: string; expireAt: number; imageBase64: string } }>(response)
+      if (res.code !== 200) throw new Error('生成小程序码失败')
+      return res.data
+    },
     checkQr: async (qrcodeId: string): Promise<{ status: number; token?: string; userInfo?: { id: string | number; nickname: string; avatarUrl?: string } }> => {
       const response = await fetchWithTimeout(`${API_BASE_URL.replace(/\/api$/, '')}/front/auth/qr/check`, {
         method: 'POST',

@@ -17,7 +17,7 @@ Page({
     appId: 'wxe6d828ae0245ab9c' // 微信小程序 AppID
   },
 
-  onLoad() {
+  onLoad(options) {
     // 获取当前环境配置
     const envConfig = getCurrentEnvConfig();
     this.setData({ 
@@ -36,6 +36,9 @@ Page({
         fail: (err) => console.warn('登录页: switchTab 失败', err)
       });
     }
+
+    // 处理携带 scene(loginId) 的小程序码直达登录
+    this.handleSceneLogin(options);
   },
 
   // 微信登录
@@ -159,6 +162,43 @@ Page({
     } catch (e) {
       console.error('扫码失败:', e);
       showToast('扫码失败或未授权');
+    }
+  },
+
+  // 处理小程序码场景登录：自动上报并确认网页端登录
+  async handleSceneLogin(options) {
+    try {
+      const enterOpts = typeof wx.getEnterOptionsSync === 'function' ? wx.getEnterOptionsSync() : null;
+      const query = enterOpts && enterOpts.query ? enterOpts.query : {};
+      const scene = (options && options.scene) || query.scene || query.loginId || '';
+      const loginId = scene || '';
+      if (!loginId) {
+        return;
+      }
+
+      showLoading('微信授权中...');
+
+      // 若未登录，先走用户中心登录
+      const auth = require('../../../utils/auth.js').default;
+      if (!auth.isAuthenticated()) {
+        const code = await wxLogin();
+        await userCenterLogin(this.data.appId, code, null);
+      }
+      const token = auth.getToken();
+      if (!token) {
+        showToast('登录态无效，请重试');
+        return;
+      }
+
+      // 上报扫码并确认
+      try { await api.qr.scan(loginId, token); } catch (e) { console.warn('scene登录: 上报失败', e); }
+      await api.qr.confirm(loginId, token);
+      showToast('已在网页端完成登录');
+
+    } catch (e) {
+      console.error('scene登录处理失败:', e);
+    } finally {
+      hideLoading();
     }
   },
 
