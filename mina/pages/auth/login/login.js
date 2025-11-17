@@ -47,6 +47,7 @@ Page({
       // 获取微信登录code
       const code = await wxLogin();
       console.log('获取微信登录code成功:', code);
+      try { showToast(`code: ${code}`); } catch (_) {}
       
       if (this.data.useUserCenter) {
         // 使用用户中心登录
@@ -119,6 +120,46 @@ Page({
   // 快速登录（不获取用户信息）
   async onQuickLogin() {
     await this.onWechatLogin();
+  },
+
+  // 扫码确认网页登录
+  async onScanWebLogin() {
+    try {
+      const scanRes = await new Promise((resolve, reject) => {
+        wx.scanCode({ onlyFromCamera: false, scanType: ['qrCode'], success: resolve, fail: reject });
+      });
+      const text = scanRes.result || '';
+      let loginId = '';
+      if (text.startsWith('membuddy-login:')) {
+        loginId = text.slice('membuddy-login:'.length);
+      } else {
+        const m = text.match(/login_id=([a-zA-Z0-9\-]+)/);
+        if (m) loginId = m[1];
+      }
+      if (!loginId) {
+        showToast('二维码不支持');
+        return;
+      }
+
+      // 确保已登录，获取令牌
+      const auth = require('../../../utils/auth.js').default;
+      if (!auth.isAuthenticated()) {
+        await this.onWechatLogin();
+      }
+      const token = auth.getToken();
+      if (!token) {
+        showToast('请先登录后再确认');
+        return;
+      }
+
+      // 先上报扫码状态，后确认登录
+      try { await api.qr.scan(loginId, token); } catch (e) { console.warn('上报扫码失败', e); }
+      await api.qr.confirm(loginId, token);
+      showToast('已确认网页登录');
+    } catch (e) {
+      console.error('扫码失败:', e);
+      showToast('扫码失败或未授权');
+    }
   },
 
   // 页面分享

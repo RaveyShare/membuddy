@@ -41,6 +41,17 @@
             <text class="btn-text">授权获取用户信息</text>
           </view>
         </button>
+        
+        <!-- 扫码网页登录确认 -->
+        <button 
+          class="btn btn-secondary btn-profile"
+          bindtap="onScanWebLogin"
+          disabled="{{wechatLoading}}"
+        >
+          <view class="btn-content">
+            <text class="btn-text">扫码确认网页登录</text>
+          </view>
+        </button>
       </view>
     </view>
   </view>

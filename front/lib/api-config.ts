@@ -46,6 +46,28 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 // API request functions
 export const api = {
+  frontAuth: {
+    generateQr: async (appId: string, scene?: string): Promise<{ qrcodeId: string; expireAt: number; qrContent: string }> => {
+      const response = await fetchWithTimeout(`${API_BASE_URL.replace(/\/api$/, '')}/front/auth/qr/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId, scene }),
+      }, 8000)
+      const res = await handleResponse<{ code: number; data: { qrcodeId: string; expireAt: number; qrContent: string } }>(response)
+      if (res.code !== 200) throw new Error('生成二维码失败')
+      return res.data
+    },
+    checkQr: async (qrcodeId: string): Promise<{ status: number; token?: string; userInfo?: { id: string | number; nickname: string; avatarUrl?: string } }> => {
+      const response = await fetchWithTimeout(`${API_BASE_URL.replace(/\/api$/, '')}/front/auth/qr/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrcodeId }),
+      }, 8000)
+      const res = await handleResponse<{ code: number; data: { status: number; token?: string; userInfo?: { id: string | number; nickname: string; avatarUrl?: string } } }>(response)
+      if (res.code !== 200) throw new Error('查询二维码状态失败')
+      return res.data
+    },
+  },
   // Authentication endpoints
   auth: {
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {

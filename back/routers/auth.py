@@ -9,7 +9,7 @@ from datetime import datetime
 from config import settings
 import schemas
 from dependencies import get_current_user
-from mock_store import users, get_or_create_user, create_user
+from mock_store import users, get_or_create_user, create_user, create_qr_session, get_qr_session, confirm_qr_session
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +192,7 @@ def get_wechat_qrcode(request: schemas.WechatQrCodeRequest = Depends()):
             auth_url=auth_url,
             state=state
         )
-        
+
     except Exception as e:
         logger.error(f"Generate WeChat QR code error: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate WeChat QR code")
@@ -291,3 +291,30 @@ def wechat_web_login(request: schemas.WechatWebLoginRequest):
 @router.post("/wechat/mp")
 def wechat_mp_login(request: schemas.WechatWebLoginRequest):
     return wechat_web_login(request)
+
+# 二维码登录（网页端轮询 + 小程序确认）
+@router.post("/qr/prepare")
+def prepare_qr_login():
+    sess = create_qr_session()
+    qr_text = f"membuddy-login:{sess['id']}"
+    return {"login_id": sess["id"], "qr_text": qr_text, "status": sess["status"]}
+
+@router.get("/qr/status")
+def qr_login_status(login_id: str):
+    sess = get_qr_session(login_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="login session not found")
+    payload = {"login_id": login_id, "status": sess["status"]}
+    if sess["status"] == "confirmed":
+        payload.update({"access_token": sess["access_token"], "token_type": "bearer"})
+    return payload
+
+@router.post("/qr/confirm")
+def qr_login_confirm(login_id: str, current_user: dict = Depends(get_current_user)):
+    sess = get_qr_session(login_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="login session not found")
+    # 颁发网页端使用的访问令牌
+    access_token = jwt.encode({"sub": current_user["id"], "email": current_user.get("email"), "full_name": current_user.get("full_name", ""), "exp": datetime.utcnow().timestamp() + 86400}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    confirm_qr_session(login_id, current_user["id"], access_token)
+    return {"ok": True}

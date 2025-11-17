@@ -218,53 +218,46 @@ export default function LoginForm() {
     }, 300000)
   }
 
-  // 微信登录处理函数
+  // 微信扫码登录（网页端）
   const handleWechatLogin = async () => {
     if (isWechatLoading) return
 
     try {
       setIsWechatLoading(true)
-      console.log('Starting WeChat login process...')
-      
-      // 调用后端API生成授权URL
-      const qrcodeUrl = `http://localhost:8000/api/auth/wechat/qrcode`
-      console.log('Requesting QR code from:', qrcodeUrl)
-      
-      const response = await fetch(qrcodeUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      
-      console.log('QR code response status:', response.status)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('QR code request failed:', errorText)
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
-      }
-      
-      const data = await response.json()
-      console.log('QR code response data:', data)
-      
-      if (data.auth_url) {
-        console.log('Generated auth URL:', data.auth_url)
-        // 生成二维码并显示
-        setQrCodeUrl(data.auth_url)
-        setShowQrCode(true)
-        
-        // 延迟生成二维码，确保对话框已完全渲染
-        setTimeout(async () => {
-          await generateQrCode(data.auth_url)
-        }, 100)
-        
-        // 开始轮询检查登录状态
-        startPolling(data.state)
-      } else {
-        console.error('No auth_url in response:', data)
-        throw new Error('获取授权URL失败')
-      }
+      const { qrcodeId, qrContent } = await api.frontAuth.generateQr('web-app-001')
+      setQrCodeUrl(qrContent)
+      setShowQrCode(true)
+      setTimeout(async () => { await generateQrCode(qrContent) }, 50)
+      // 轮询二维码状态
+      const interval = setInterval(async () => {
+        try {
+          const res = await api.frontAuth.checkQr(qrcodeId)
+          if (res.status === 2 && res.token) {
+            if (pollingInterval) { clearInterval(pollingInterval); setPollingInterval(null) }
+            setShowQrCode(false)
+            // 构造用户对象并写入 authManager
+            const user = {
+              id: String(res.userInfo?.id || ''),
+              email: '',
+              name: res.userInfo?.nickname || '用户',
+              avatar: res.userInfo?.avatarUrl,
+              createdAt: new Date().toISOString(),
+            }
+            const authData = { user, token: res.token, refreshToken: '' }
+            const { authManager } = await import('@/lib/auth')
+            authManager.setAuth(authData)
+            toast({ title: '登录成功', description: '已通过微信扫码登录' })
+            const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/'
+            router.push(redirectTo)
+          } else if (res.status === 3) {
+            if (pollingInterval) { clearInterval(pollingInterval); setPollingInterval(null) }
+            toast({ title: '二维码已过期', description: '请重新生成', variant: 'destructive' })
+          }
+        } catch (err) {
+          console.error('轮询失败', err)
+        }
+      }, 1500)
+      setPollingInterval(interval)
     } catch (error) {
       console.error('WeChat login error:', error)
       const errorMessage = error instanceof Error ? error.message : '未知错误'

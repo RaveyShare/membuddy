@@ -5,6 +5,7 @@ users = {}
 memory_items = {}
 review_schedules = {}
 shares = {}
+qr_sessions = {}
 
 def create_user(email: str, full_name: str, password: str):
     u = {"id": str(uuid.uuid4()), "email": email, "full_name": full_name or "", "password": password}
@@ -56,3 +57,30 @@ def create_default_schedule(item_id: str, user_id: str):
         }
         review_schedules[sid] = rs
     return True
+
+def create_qr_session():
+    sid = str(uuid.uuid4())
+    qr_sessions[sid] = {
+        "id": sid,
+        "status": "pending",
+        "created_at": datetime.utcnow().isoformat(),
+        "confirmed_at": None,
+        "user_id": None,
+        "access_token": None,
+    }
+    return qr_sessions[sid]
+
+def confirm_qr_session(login_id: str, user_id: str, access_token: str):
+    sess = qr_sessions.get(login_id)
+    if not sess:
+        return None
+    sess.update({
+        "status": "confirmed",
+        "confirmed_at": datetime.utcnow().isoformat(),
+        "user_id": user_id,
+        "access_token": access_token,
+    })
+    return sess
+
+def get_qr_session(login_id: str):
+    return qr_sessions.get(login_id)
