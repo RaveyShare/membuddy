@@ -14,6 +14,9 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
   ? process.env.NEXT_PUBLIC_API_URL || "https://your-aliyun-backend-domain.com/api"
   : "http://localhost:8000/api"
 
+// Java Front-Auth Base Path 走同源代理以避免跨域
+const FRONT_AUTH_BASE_URL = ''
+
 // 创建带超时的fetch函数
 const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 10000) => {
   const controller = new AbortController();
@@ -48,33 +51,33 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const api = {
   frontAuth: {
     generateQr: async (appId: string, scene?: string): Promise<{ qrcodeId: string; expireAt: number; qrContent: string }> => {
-      const response = await fetchWithTimeout(`${API_BASE_URL.replace(/\/api$/, '')}/front/auth/qr/generate`, {
+      const response = await fetchWithTimeout(`/front/auth/qr/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appId, scene }),
       }, 8000)
       const res = await handleResponse<{ code: number; data: { qrcodeId: string; expireAt: number; qrContent: string } }>(response)
-      if (res.code !== 200) throw new Error('生成二维码失败')
+      if (res.code !== 0 && res.code !== 200) throw new Error('生成二维码失败')
       return res.data
     },
     generateWxacode: async (appId: string, qrcodeId: string, page = 'pages/auth/login/login', width = 430): Promise<{ qrcodeId: string; expireAt: number; imageBase64: string }> => {
-      const response = await fetchWithTimeout(`${API_BASE_URL.replace(/\/api$/, '')}/front/auth/qr/wxacode`, {
+      const response = await fetchWithTimeout(`/front/auth/qr/wxacode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appId, qrcodeId, page, width }),
       }, 10000)
       const res = await handleResponse<{ code: number; data: { qrcodeId: string; expireAt: number; imageBase64: string } }>(response)
-      if (res.code !== 200) throw new Error('生成小程序码失败')
+      if (res.code !== 0 && res.code !== 200) throw new Error('生成小程序码失败')
       return res.data
     },
     checkQr: async (qrcodeId: string): Promise<{ status: number; token?: string; userInfo?: { id: string | number; nickname: string; avatarUrl?: string } }> => {
-      const response = await fetchWithTimeout(`${API_BASE_URL.replace(/\/api$/, '')}/front/auth/qr/check`, {
+      const response = await fetchWithTimeout(`/front/auth/qr/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qrcodeId }),
       }, 8000)
       const res = await handleResponse<{ code: number; data: { status: number; token?: string; userInfo?: { id: string | number; nickname: string; avatarUrl?: string } } }>(response)
-      if (res.code !== 200) throw new Error('查询二维码状态失败')
+      if (res.code !== 0 && res.code !== 200) throw new Error('查询二维码状态失败')
       return res.data
     },
   },

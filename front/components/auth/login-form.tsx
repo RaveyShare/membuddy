@@ -26,12 +26,14 @@ export default function LoginForm() {
   const [qrCodeUrl, setQrCodeUrl] = useState("")
   const [wxacodeBase64, setWxacodeBase64] = useState<string>("")
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+  const [isClient, setIsClient] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // 检测是否在微信环境中
+  // 检测是否在微信环境中（客户端环境）
   useEffect(() => {
+    setIsClient(true)
     const userAgent = navigator.userAgent.toLowerCase()
     const isWechat = userAgent.includes('micromessenger')
     setIsWechatEnv(isWechat)
@@ -226,8 +228,15 @@ export default function LoginForm() {
     try {
       setIsWechatLoading(true)
       const { qrcodeId } = await api.frontAuth.generateQr('wxe6d828ae0245ab9c')
-      const wxacode = await api.frontAuth.generateWxacode('wxe6d828ae0245ab9c', qrcodeId)
-      setWxacodeBase64(wxacode.imageBase64)
+      const cacheKey = `wxacode_${qrcodeId}`
+      const cached = sessionStorage.getItem(cacheKey)
+      if (cached) {
+        setWxacodeBase64(cached)
+      } else {
+        const wxacode = await api.frontAuth.generateWxacode('wxe6d828ae0245ab9c', qrcodeId)
+        setWxacodeBase64(wxacode.imageBase64)
+        sessionStorage.setItem(cacheKey, wxacode.imageBase64)
+      }
       setShowQrCode(true)
       // 轮询二维码状态
       const interval = setInterval(async () => {
@@ -250,9 +259,11 @@ export default function LoginForm() {
             toast({ title: '登录成功', description: '已通过微信扫码登录' })
             const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/'
             router.push(redirectTo)
-          } else if (res.status === 3) {
+        } else if (res.status === 3) {
             if (pollingInterval) { clearInterval(pollingInterval); setPollingInterval(null) }
-            toast({ title: '二维码已过期', description: '请重新生成', variant: 'destructive' })
+            toast({ title: '二维码已过期', description: '正在重新生成...', variant: 'destructive' })
+            setIsWechatLoading(false)
+            setTimeout(() => { handleWechatLogin() }, 0)
           }
         } catch (err) {
           console.error('轮询失败', err)
@@ -271,6 +282,8 @@ export default function LoginForm() {
       setIsWechatLoading(false)
     }
   }
+
+  useEffect(() => { handleWechatLogin() }, [])
 
   // 关闭二维码对话框
   const handleCloseQrCode = () => {
@@ -382,26 +395,23 @@ export default function LoginForm() {
               </div>
             </div>
             
-            {/* 微信扫码登录 */}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
-              onClick={handleWechatLogin}
-              disabled={isWechatLoading || isLoading}
-            >
-              {isWechatLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  连接微信中...
-                </>
-              ) : (
-                <>
+            {isClient && (
+              <div className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10 px-4 py-3 rounded-md">
+                <div className="flex items-center mb-3">
                   <QrCode className="mr-2 h-4 w-4" />
-                  {isWechatEnv ? "微信登录" : "微信扫码登录"}
-                </>
-              )}
-            </Button>
+                  <span>使用微信扫码即可登录</span>
+                  {isWechatLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                </div>
+                <div className="flex flex-col items-center space-y-2">
+                  {wxacodeBase64 ? (
+                    <img src={`data:image/png;base64,${wxacodeBase64}`} alt="微信小程序码" className="w-52 h-52" />
+                  ) : (
+                    <span className="text-white/60 text-sm">正在生成小程序码...</span>
+                  )}
+                  <span className="text-white/70 text-xs">请用微信扫描上方小程序码完成登录</span>
+                </div>
+              </div>
+            )}
             <div className="text-center text-sm text-white/70">
               还没有账户？{" "}
               <Link href="/auth/register" className="text-cyan-400 hover:text-cyan-300 hover:underline">
@@ -412,45 +422,7 @@ export default function LoginForm() {
         </form>
       </Card>
       
-      {/* 微信扫码登录对话框 */}
-      <Dialog open={showQrCode} onOpenChange={handleCloseQrCode}>
-        <DialogContent className="sm:max-w-md border border-white/10 bg-white/5 backdrop-blur-sm">
-          <DialogHeader>
-            <DialogTitle className="text-center text-white flex items-center justify-between">
-              微信扫码登录
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCloseQrCode}
-                className="text-white/50 hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center space-y-4 p-4">
-            <div className="bg-white p-4 rounded-lg">
-              {wxacodeBase64 ? (
-                <img src={`data:image/png;base64,${wxacodeBase64}`} alt="微信小程序码" className="w-52 h-52" />
-              ) : (
-                <canvas ref={canvasRef} />
-              )}
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-white/80 text-sm">
-                请使用微信扫描上方二维码
-              </p>
-              <p className="text-white/60 text-xs">
-                扫码后在微信中完成授权登录
-              </p>
-            </div>
-            <div className="flex items-center space-x-2 text-white/50">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">等待扫码...</span>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      
     </motion.div>
   )
 }
