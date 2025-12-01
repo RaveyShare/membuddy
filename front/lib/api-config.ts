@@ -60,11 +60,11 @@ export const api = {
       if (res.code !== 0 && res.code !== 200) throw new Error('生成二维码失败')
       return res.data
     },
-    generateWxacode: async (appId: string, qrcodeId: string, page = 'pages/auth/login/login', width = 430): Promise<{ qrcodeId: string; expireAt: number; imageBase64: string }> => {
+    generateWxacode: async (appId: string, qrcodeId: string, page = 'pages/auth/login/login', width = 430, envVersion: 'release'): Promise<{ qrcodeId: string; expireAt: number; imageBase64: string }> => {
       const response = await fetchWithTimeout(`/front/auth/qr/wxacode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appId, qrcodeId, page, width }),
+        body: JSON.stringify({ appId, qrcodeId, page, width, envVersion, checkPath: true }),
       }, 10000)
       const res = await handleResponse<{ code: number; data: { qrcodeId: string; expireAt: number; imageBase64: string } }>(response)
       if (res.code !== 0 && res.code !== 200) throw new Error('生成小程序码失败')

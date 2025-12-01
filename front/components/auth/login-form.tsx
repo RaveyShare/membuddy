@@ -233,7 +233,8 @@ export default function LoginForm() {
       if (cached) {
         setWxacodeBase64(cached)
       } else {
-        const wxacode = await api.frontAuth.generateWxacode('wxe6d828ae0245ab9c', qrcodeId)
+        const env = process.env.NEXT_PUBLIC_WXA_ENV || 'develop'
+        const wxacode = await api.frontAuth.generateWxacode('wxe6d828ae0245ab9c', qrcodeId, 'pages/auth/login/login', 430, env)
         setWxacodeBase64(wxacode.imageBase64)
         sessionStorage.setItem(cacheKey, wxacode.imageBase64)
       }
@@ -283,7 +284,12 @@ export default function LoginForm() {
     }
   }
 
-  useEffect(() => { handleWechatLogin() }, [])
+  const startedRef = useRef(false)
+  useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+    handleWechatLogin()
+  }, [])
 
   // 关闭二维码对话框
   const handleCloseQrCode = () => {
@@ -404,7 +410,13 @@ export default function LoginForm() {
                 </div>
                 <div className="flex flex-col items-center space-y-2">
                   {wxacodeBase64 ? (
-                    <img src={`data:image/png;base64,${wxacodeBase64}`} alt="微信小程序码" className="w-52 h-52" />
+                    <div className="rounded-lg" style={{ backgroundColor: '#ffffff', padding: 12 }}>
+                      <img
+                        src={`data:image/png;base64,${wxacodeBase64}`}
+                        alt="微信小程序码"
+                        style={{ width: 420, height: 'auto', display: 'block' }}
+                      />
+                    </div>
                   ) : (
                     <span className="text-white/60 text-sm">正在生成小程序码...</span>
                   )}
