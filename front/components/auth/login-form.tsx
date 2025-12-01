@@ -83,6 +83,12 @@ export default function LoginForm() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isWechatEnv && !showQrCode && !isWechatLoading) {
+      handleWechatLogin()
+    }
+  }, [isWechatEnv])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -225,7 +231,9 @@ export default function LoginForm() {
 
     try {
       setIsWechatLoading(true)
-      const { qrcodeId } = await api.frontAuth.generateQr('wxe6d828ae0245ab9c')
+      const { qrcodeId, qrContent } = await api.frontAuth.generateQr('wxe6d828ae0245ab9c')
+      setQrCodeUrl(qrContent)
+      await generateQrCode(qrContent)
       const wxacode = await api.frontAuth.generateWxacode('wxe6d828ae0245ab9c', qrcodeId)
       setWxacodeBase64(wxacode.imageBase64)
       setShowQrCode(true)
