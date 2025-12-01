@@ -9,18 +9,13 @@ import { authManager, type AuthResponse, type LoginCredentials, type RegisterCre
 import type { MemoryItem, MemoryItemCreate, MemoryAids, ReviewSchedule, ReviewCompletionRequest } from "./types"
 import { jwtDecode } from "jwt-decode";
 
-const USER_CENTER_BASE_URL = (
-  typeof window !== 'undefined' && window.location.origin.includes('localhost:3000')
-    ? '/api/uc'
-    : (process.env.NEXT_PUBLIC_USER_CENTER_URL || 'https://user-center.ravey.site')
-).replace(/\/$/, "")
-const APP_BACKEND_BASE_URL = (
-  process.env.NEXT_PUBLIC_APP_BACKEND_URL 
-  || process.env.NEXT_PUBLIC_API_URL 
-  || (process.env.NODE_ENV === 'production' ? "https://membuddy-back.ravey.site/api" : "http://localhost:8000/api")
-).replace(/\/$/, "")
+// API Base URL - 根据环境自动选择
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? process.env.NEXT_PUBLIC_API_URL || "https://your-aliyun-backend-domain.com/api"
+  : "http://localhost:8000/api"
 
-const stripApiSuffix = (url: string) => url.replace(/\/api$/, "")
+// Java Front-Auth Base Path 走同源代理以避免跨域
+const FRONT_AUTH_BASE_URL = ''
 
 // 创建带超时的fetch函数
 const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 10000) => {
@@ -56,40 +51,40 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const api = {
   frontAuth: {
     generateQr: async (appId: string, scene?: string): Promise<{ qrcodeId: string; expireAt: number; qrContent: string }> => {
-      const response = await fetchWithTimeout(`${stripApiSuffix(USER_CENTER_BASE_URL)}/front/auth/qr/generate`, {
+      const response = await fetchWithTimeout(`/front/auth/qr/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appId, scene }),
       }, 8000)
       const res = await handleResponse<{ code: number; data: { qrcodeId: string; expireAt: number; qrContent: string } }>(response)
-      if (res.code !== 200) throw new Error('生成二维码失败')
+      if (res.code !== 0 && res.code !== 200) throw new Error('生成二维码失败')
       return res.data
     },
     generateWxacode: async (appId: string, qrcodeId: string, page = 'pages/auth/login/login', width = 430): Promise<{ qrcodeId: string; expireAt: number; imageBase64: string }> => {
-      const response = await fetchWithTimeout(`${stripApiSuffix(USER_CENTER_BASE_URL)}/front/auth/qr/wxacode`, {
+      const response = await fetchWithTimeout(`/front/auth/qr/wxacode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appId, qrcodeId, page, width }),
       }, 10000)
       const res = await handleResponse<{ code: number; data: { qrcodeId: string; expireAt: number; imageBase64: string } }>(response)
-      if (res.code !== 200) throw new Error('生成小程序码失败')
+      if (res.code !== 0 && res.code !== 200) throw new Error('生成小程序码失败')
       return res.data
     },
     checkQr: async (qrcodeId: string): Promise<{ status: number; token?: string; userInfo?: { id: string | number; nickname: string; avatarUrl?: string } }> => {
-      const response = await fetchWithTimeout(`${stripApiSuffix(USER_CENTER_BASE_URL)}/front/auth/qr/check`, {
+      const response = await fetchWithTimeout(`/front/auth/qr/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qrcodeId }),
       }, 8000)
       const res = await handleResponse<{ code: number; data: { status: number; token?: string; userInfo?: { id: string | number; nickname: string; avatarUrl?: string } } }>(response)
-      if (res.code !== 200) throw new Error('查询二维码状态失败')
+      if (res.code !== 0 && res.code !== 200) throw new Error('查询二维码状态失败')
       return res.data
     },
   },
   // Authentication endpoints
   auth: {
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-      const response = await fetchWithTimeout(`${USER_CENTER_BASE_URL}/auth/login`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
@@ -112,7 +107,7 @@ export const api = {
     },
 
     register: async (credentials: RegisterCredentials): Promise<AuthResponse> => {
-      const response = await fetchWithTimeout(`${USER_CENTER_BASE_URL}/auth/register`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -133,7 +128,7 @@ export const api = {
     },
 
     forgotPassword: async (email: string): Promise<void> => {
-      const response = await fetchWithTimeout(`${USER_CENTER_BASE_URL}/auth/forgot-password`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -142,7 +137,7 @@ export const api = {
     },
 
     resetPassword: async (token: string, newPassword: string): Promise<void> => {
-      const response = await fetchWithTimeout(`${USER_CENTER_BASE_URL}/auth/reset-password`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/reset-password`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -155,7 +150,7 @@ export const api = {
 
     // WeChat login endpoints
     wechatMiniLogin: async (code: string, userInfo?: any): Promise<AuthResponse> => {
-      const response = await fetchWithTimeout(`${USER_CENTER_BASE_URL}/auth/wechat/mini`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/wechat/mini`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, user_info: userInfo }),
@@ -176,7 +171,7 @@ export const api = {
     },
 
     wechatMpLogin: async (code: string, state: string): Promise<AuthResponse> => {
-      const response = await fetchWithTimeout(`${USER_CENTER_BASE_URL}/auth/wechat/mp`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/wechat/mp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, state }),
@@ -202,7 +197,7 @@ export const api = {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/memory_items`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/memory_items`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -214,7 +209,7 @@ export const api = {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/memory_items/${id}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/memory_items/${id}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -226,7 +221,7 @@ export const api = {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/memory_items`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/memory_items`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -241,7 +236,7 @@ export const api = {
     const token = authManager.getToken();
     if (!token) throw new Error("Not authenticated");
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/memory_items/${itemId}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/memory_items/${itemId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -256,7 +251,7 @@ export const api = {
     const token = authManager.getToken();
     if (!token) throw new Error("Not authenticated");
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/memory_items/${itemId}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/memory_items/${itemId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -272,7 +267,7 @@ export const api = {
     const token = authManager.getToken();
     if (!token) throw new Error("Not authenticated");
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/review_schedules?memory_item_id=${memoryItemId}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/review_schedules?memory_item_id=${memoryItemId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -284,7 +279,7 @@ export const api = {
     const token = authManager.getToken();
     if (!token) throw new Error("Not authenticated");
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/review_schedules/${scheduleId}/complete`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/review_schedules/${scheduleId}/complete`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -300,7 +295,7 @@ export const api = {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/memory/generate`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/memory/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -311,11 +306,11 @@ export const api = {
     return handleResponse<MemoryAids>(response)
   },
 
-  deleteMemoryItem: async (id: string): Promise<void> => {
+    deleteMemoryItem: async (id: string): Promise<void> => {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/memory_items/${id}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/memory_items/${id}`, {
     method: 'DELETE',
     headers: {
     Authorization: `Bearer ${token}`,
@@ -337,7 +332,7 @@ export const api = {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/generate/image`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/generate/image`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -352,7 +347,7 @@ export const api = {
     const token = authManager.getToken()
     if (!token) throw new Error("Not authenticated")
 
-    const response = await fetchWithTimeout(`${APP_BACKEND_BASE_URL}/generate/audio`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/generate/audio`, {
     method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -13,7 +13,7 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, requireAuth = false, publicOnly = false }: AuthGuardProps) {
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!publicOnly)
   const [authChecked, setAuthChecked] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const router = useRouter()
