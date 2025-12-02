@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api-config"
 import QRCode from "qrcode"
 
+let wechatLoginStarted = false
+
 export default function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -221,12 +223,13 @@ export default function LoginForm() {
     }, 300000)
   }
 
-  // 微信扫码登录（网页端）
-  const handleWechatLogin = async () => {
-    if (isWechatLoading) return
+  const handleWechatLogin = async (force = false) => {
+    if (isWechatLoading || (!force && wechatLoginStarted)) return
 
     try {
       setIsWechatLoading(true)
+      wechatLoginStarted = true
+      if (pollingInterval) { clearInterval(pollingInterval); setPollingInterval(null) }
       const { qrcodeId } = await api.frontAuth.generateQr('wxe6d828ae0245ab9c')
       const cacheKey = `wxacode_${qrcodeId}`
       const cached = sessionStorage.getItem(cacheKey)
@@ -264,7 +267,7 @@ export default function LoginForm() {
             if (pollingInterval) { clearInterval(pollingInterval); setPollingInterval(null) }
             toast({ title: '二维码已过期', description: '正在重新生成...', variant: 'destructive' })
             setIsWechatLoading(false)
-            setTimeout(() => { handleWechatLogin() }, 0)
+            setTimeout(() => { handleWechatLogin(true) }, 0)
           }
         } catch (err) {
           console.error('轮询失败', err)
